@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Precios - Sielu</title>
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <!-- jsPDF for export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+</head>
+
+<body>
+    <header>
+        <p class="title-pre">Lista de Precios Febrero</p>
+        <h1 class="logo-main" id="brandLogo">Sielu</h1>
+    </header>
+
+    <div class="controls-container">
+        <input type="text" id="searchInput" placeholder="Buscar por nombre, código o descripción...">
+        <button id="btnDownload" class="btn-primary">Descargar PDF</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="priceTable">
+            <thead>
+                <tr>
+                    <th>Imagen</th>
+                    <th>Nombre</th>
+                    <th>Código Facturación</th>
+                    <th>Precio antes de IVA</th>
+                    <th>Ficha Técnica</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Products will be injected here -->
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2rem;">Cargando productos...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script type="module" src="view.js"></script>
+</body>
+
+</html>

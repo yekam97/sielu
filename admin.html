@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sielu Admin - Gestión de Precios</title>
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <header>
+        <p class="title-pre">Panel de Administración</p>
+        <h1 class="logo-main">Sielu</h1>
+    </header>
+
+    <div class="admin-container">
+        <h2 style="margin-bottom: 1.5rem; font-family: var(--font-serif);">Agregar / Editar Producto</h2>
+        <form id="productForm">
+            <input type="hidden" id="productId">
+
+            <div class="form-group">
+                <label for="cat">Categoría</label>
+                <input type="text" id="cat" placeholder="Ej: BALAS PARA GU10" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label for="nombre">Nombre del Producto</label>
+                    <input type="text" id="nombre" required>
+                </div>
+                <div class="form-group">
+                    <label for="codigo">Código Facturación</label>
+                    <input type="text" id="codigo" required>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label for="price">Precio antes de IVA</label>
+                    <input type="number" id="price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="img">URL de Imagen</label>
+                    <input type="text" id="img">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="sheet">URL Ficha Técnica</label>
+                <input type="text" id="sheet">
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button type="submit" id="submitBtn" class="btn-primary" style="flex: 1;">Agregar Producto</button>
+                <button type="button" id="cancelBtn" class="btn-primary"
+                    style="background: #f44336; color: white; display: none;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="controls-container">
+        <input type="text" id="searchInput" placeholder="Filtrar productos cargados...">
+    </div>
+
+    <div class="table-wrapper">
+        <table id="adminTable">
+            <thead>
+                <tr>
+                    <th>Imagen</th>
+                    <th>Producto</th>
+                    <th>Código</th>
+                    <th>Precio</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Products will be injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script type="module" src="admin.js"></script>
+</body>
+
+</html>
