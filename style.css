@@ -1,15 +1,18 @@
 :root {
     /* Sielu Color Palette */
-    --sielu-bg: #FFFDF2;        /* Elegant Cream */
-    --sielu-accent: #DBCFAC;    /* Soft Tan/Gold */
-    --sielu-text-dark: #1A1A1A;  /* Deep charcoal for readability */
+    --sielu-bg: #FFFDF2;
+    /* Elegant Cream */
+    --sielu-accent: #DBCFAC;
+    /* Soft Tan/Gold */
+    --sielu-text-dark: #1A1A1A;
+    /* Deep charcoal for readability */
     --sielu-text-muted: #555555;
     --sielu-white: #FFFFFF;
-    
+
     /* Typography */
     --font-serif: "Playfair Display", serif;
     --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    
+
     /* Spacing & Borders */
     --border-radius: 8px;
     --transition-fast: 0.2s ease;
@@ -34,7 +37,7 @@ header {
     background-color: var(--sielu-accent);
     padding: 2.5rem 1rem;
     text-align: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .title-pre {
@@ -117,7 +120,7 @@ table {
     background: var(--sielu-white);
     border-radius: var(--border-radius);
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
 }
 
 th {
@@ -148,6 +151,47 @@ td {
     padding: 1.5rem 1rem;
     color: var(--sielu-text-dark);
     border-bottom: 2px solid var(--sielu-accent);
+    cursor: pointer;
+    user-select: none;
+}
+
+.category-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.category-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.category-btn {
+    background: var(--sielu-accent);
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: var(--transition-fast);
+}
+
+.category-btn:hover {
+    filter: brightness(0.9);
+}
+
+.toggle-icon {
+    display: inline-block;
+    transition: transform var(--transition-fast);
+}
+
+.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.hidden {
+    display: none !important;
 }
 
 .product-img {
@@ -177,7 +221,7 @@ td {
     background: var(--sielu-white);
     padding: 2rem;
     border-radius: var(--border-radius);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .form-group {
@@ -191,9 +235,9 @@ td {
     font-size: 0.9rem;
 }
 
-input[type="text"], 
-input[type="number"], 
-select, 
+input[type="text"],
+input[type="number"],
+select,
 textarea {
     width: 100%;
     padding: 0.7rem;
@@ -207,35 +251,40 @@ textarea {
     .logo-main {
         font-size: 3rem;
     }
-    
+
     .controls-container {
         flex-direction: column;
         align-items: stretch;
     }
-    
-    table, thead, tbody, th, td, tr {
+
+    table,
+    thead,
+    tbody,
+    th,
+    td,
+    tr {
         display: block;
     }
-    
+
     thead tr {
         position: absolute;
         top: -9999px;
         left: -9999px;
     }
-    
+
     tr {
         margin-bottom: 1.5rem;
         border: 1px solid #eee;
         border-radius: var(--border-radius);
     }
-    
+
     td {
         border: none;
         position: relative;
         padding-left: 50%;
         text-align: right;
     }
-    
+
     td:before {
         content: attr(data-label);
         position: absolute;
@@ -245,12 +294,12 @@ textarea {
         font-weight: 700;
         color: var(--sielu-text-muted);
     }
-    
+
     .category-header td {
         padding-left: 1rem;
         text-align: center;
     }
-    
+
     .category-header td:before {
         display: none;
     }

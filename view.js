@@ -1,18 +1,24 @@
-import { collection, getDocs, query } from "firebase/firestore";
+import { collection, getDocs, query, doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase-config.js";
 
 let allProducts = [];
+let categoryOrder = [];
 
-// Sielu specific categories (can be expanded)
-const CATEGORY_ORDER = [
-    "BALAS PARA LED/GU10",
-    "BALAS PARA GU10",
-    "CINTAS LED",
-    "PERFILES"
-];
+async function fetchConfig() {
+    try {
+        const configRef = doc(db, "sielu_config", "categories");
+        const configSnap = await getDoc(configRef);
+        if (configSnap.exists()) {
+            categoryOrder = configSnap.data().order || [];
+        }
+    } catch (error) {
+        console.error("Error fetching config:", error);
+    }
+}
 
 async function fetchProducts() {
     try {
+        await fetchConfig();
         const q = query(collection(db, "productos_sielu"));
         const querySnapshot = await getDocs(q);
 
@@ -22,7 +28,7 @@ async function fetchProducts() {
             allProducts.push({
                 id: doc.id,
                 nombre: data.Nombre || '',
-                cat: data.Categoria || 'General',
+                cat: data.Categoria || 'Sin Categoría',
                 img: data.Imagen || '',
                 codigo: data.CodigoFacturacion || '',
                 precio: data.PrecioAntesIVA || 0,
@@ -71,13 +77,11 @@ function renderTable(filter = '') {
         grouped[cat].push(item);
     });
 
-    const sortedCategories = Object.keys(grouped).sort((a, b) => {
-        const indexA = CATEGORY_ORDER.indexOf(a);
-        const indexB = CATEGORY_ORDER.indexOf(b);
-        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
+    // Use dynamic categoryOrder
+    const sortedCategories = categoryOrder.filter(cat => grouped[cat]);
+    // Add any categories from grouped that might not be in the sorted list (fallback)
+    Object.keys(grouped).forEach(cat => {
+        if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
     });
 
     if (items.length === 0 && allProducts.length > 0) {
@@ -99,7 +103,7 @@ function renderTable(filter = '') {
             const tdImg = document.createElement('td');
             tdImg.setAttribute('data-label', 'Imagen');
             const img = document.createElement('img');
-            img.src = item.img || 'placeholder.png';
+            img.src = item.img || '';
             img.className = 'product-img';
             img.onerror = () => { img.style.display = 'none'; };
             tdImg.appendChild(img);
@@ -113,13 +117,13 @@ function renderTable(filter = '') {
 
             // Código
             const tdCode = document.createElement('td');
-            tdCode.setAttribute('data-label', 'Código Facturación');
+            tdCode.setAttribute('data-label', 'Código');
             tdCode.textContent = item.codigo;
             tr.appendChild(tdCode);
 
             // Precio
             const tdPrice = document.createElement('td');
-            tdPrice.setAttribute('data-label', 'Precio antes de IVA');
+            tdPrice.setAttribute('data-label', 'Precio');
             tdPrice.className = 'price-cell';
             const priceVal = parseFloat(item.precio);
             tdPrice.textContent = isNaN(priceVal) ? item.precio : "$" + priceVal.toLocaleString('es-CO');
@@ -127,7 +131,7 @@ function renderTable(filter = '') {
 
             // Ficha
             const tdFicha = document.createElement('td');
-            tdFicha.setAttribute('data-label', 'Ficha Técnica');
+            tdFicha.setAttribute('data-label', 'Ficha');
             if (item.ficha) {
                 const a = document.createElement('a');
                 a.href = item.ficha;
