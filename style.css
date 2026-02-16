@@ -346,6 +346,20 @@ textarea {
 }
 
 /* --- RESPONSIVE --- */
+@media (max-width: 1024px) {
+    .catalog-item {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .catalog-right {
+        grid-column: span 2;
+        border-left: none;
+        border-top: 1px solid #eee;
+        padding-top: 2rem;
+        padding-left: 0;
+    }
+}
+
 @media (max-width: 768px) {
     .logo-main {
         font-size: 3rem;
@@ -401,5 +415,22 @@ textarea {
 
     .category-header td:before {
         display: none;
+    }
+
+    .catalog-item {
+        grid-template-columns: 1fr;
+        padding: 1.5rem;
+    }
+
+    .catalog-right {
+        grid-column: span 1;
+    }
+
+    .tech-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .catalog-info h2 {
+        font-size: 2rem;
     }
 }
