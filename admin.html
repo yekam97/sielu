@@ -44,14 +44,47 @@
                     <input type="number" id="price" step="0.01" required>
                 </div>
                 <div class="form-group">
-                    <label for="img">URL de Imagen</label>
-                    <input type="text" id="img">
+                    <label for="img">URL de Imagen Principal</label>
+                    <input type="text" id="img" placeholder="https://...">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label for="material">Material</label>
+                    <input type="text" id="material" placeholder="Ej: Aluminio">
+                </div>
+                <div class="form-group">
+                    <label for="ip">Grado IP</label>
+                    <input type="text" id="ip" placeholder="Ej: 20">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label for="color">Color(es)</label>
+                    <input type="text" id="color" placeholder="Ej: Negro / Blanco">
+                </div>
+                <div class="form-group">
+                    <label for="temp">Color Temp</label>
+                    <input type="text" id="temp" placeholder="Ej: 3000K">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label for="garantia">Garantía</label>
+                    <input type="text" id="garantia" placeholder="Ej: 2 años">
+                </div>
+                <div class="form-group">
+                    <label for="dibujo">URL Dibujo Técnico (Imagen)</label>
+                    <input type="text" id="dibujo" placeholder="https://...">
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="sheet">URL Ficha Técnica</label>
-                <input type="text" id="sheet">
+                <label for="sheet">URL Ficha Técnica (PDF)</label>
+                <input type="text" id="sheet" placeholder="https://...">
             </div>
 
             <div style="display: flex; gap: 1rem; margin-top: 1rem;">

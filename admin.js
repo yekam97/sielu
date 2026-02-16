@@ -55,6 +55,12 @@ async function fetchProducts() {
                 codigo: data.CodigoFacturacion || '',
                 precio: data.PrecioAntesIVA || 0,
                 ficha: data.FichaTecnica || '',
+                material: data.Material || '',
+                ip: data.IP || '',
+                color: data.Color || '',
+                temp: data.Temp || '',
+                garantia: data.Garantia || '',
+                dibujo: data.Dibujo || '',
                 estado: data.Estado || 'Disponible'
             });
         });
@@ -215,6 +221,12 @@ window.editItem = (id) => {
     document.getElementById('price').value = item.precio;
     document.getElementById('img').value = item.img;
     document.getElementById('sheet').value = item.ficha;
+    document.getElementById('material').value = item.material || '';
+    document.getElementById('ip').value = item.ip || '';
+    document.getElementById('color').value = item.color || '';
+    document.getElementById('temp').value = item.temp || '';
+    document.getElementById('garantia').value = item.garantia || '';
+    document.getElementById('dibujo').value = item.dibujo || '';
 
     document.getElementById('submitBtn').textContent = 'Guardar cambios';
     document.getElementById('cancelBtn').style.display = 'block';
@@ -248,6 +260,12 @@ form.addEventListener('submit', async e => {
         PrecioAntesIVA: parseFloat(document.getElementById('price').value),
         Imagen: document.getElementById('img').value.trim(),
         FichaTecnica: document.getElementById('sheet').value.trim(),
+        Material: document.getElementById('material').value.trim(),
+        IP: document.getElementById('ip').value.trim(),
+        Color: document.getElementById('color').value.trim(),
+        Temp: document.getElementById('temp').value.trim(),
+        Garantia: document.getElementById('garantia').value.trim(),
+        Dibujo: document.getElementById('dibujo').value.trim(),
         fechaUpdate: new Date()
     };
 

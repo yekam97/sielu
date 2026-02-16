@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo - Sielu</title>
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <header>
+        <p class="title-pre">Catálogo de Productos</p>
+        <h1 class="logo-main">Sielu</h1>
+    </header>
+
+    <div class="controls-container">
+        <input type="text" id="searchInput" placeholder="Buscar productos en el catálogo...">
+        <a href="index.html" class="btn-primary" style="background: #eee;">Volver al Inicio</a>
+    </div>
+
+    <div id="catalogContent" class="catalog-container">
+        <!-- Catalog items will be injected here -->
+        <h3 style="text-align: center; color: #aaa; margin-top: 5rem;">Cargando catálogo...</h3>
+    </div>
+
+    <script type="module" src="catalogo.js"></script>
+</body>
+
+</html>
