@@ -1,4 +1,3 @@
-```javascript
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, getDoc, setDoc } from "firebase/firestore";
 import { db } from "./firebase-config.js";
 
@@ -69,8 +68,11 @@ async function fetchProducts() {
                 changed = true;
             }
         });
-        // Remove categories that no longer exist in products
+
+        // Remove empty categories from tracker
+        const oldLen = categoryOrder.length;
         categoryOrder = categoryOrder.filter(cat => currentCats.includes(cat));
+        if (oldLen !== categoryOrder.length) changed = true;
 
         if (changed) await saveCategoryOrder();
 
@@ -103,33 +105,32 @@ function renderTable(filter = '') {
     });
 
     const sortedCategories = categoryOrder.filter(cat => grouped[cat]);
-    // Add any categories from grouped that might not be in the sorted list (fallback)
     Object.keys(grouped).forEach(cat => {
         if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
     });
 
     sortedCategories.forEach((cat, index) => {
         const isCollapsed = collapsedCategories.has(cat);
-        
+
         const catRow = document.createElement('tr');
         catRow.className = 'category-header' + (isCollapsed ? ' collapsed' : '');
-        
+
         const catCell = document.createElement('td');
         catCell.colSpan = 8;
-        
+
         const headerContent = document.createElement('div');
         headerContent.className = 'category-header-content';
         headerContent.innerHTML = `
-    < div >
+            <div>
                 <span class="toggle-icon">${isCollapsed ? '▶' : '▼'}</span>
                 <span>${cat}</span>
-            </div >
-    <div class="category-controls">
-        <button class="category-btn" ${index === 0 ? 'disabled' : ''} onclick="event.stopPropagation(); window.moveCategory('${cat}', -1)">▲</button>
-        <button class="category-btn" ${index === sortedCategories.length - 1 ? 'disabled' : ''} onclick="event.stopPropagation(); window.moveCategory('${cat}', 1)">▼</button>
-    </div>
-`;
-        
+            </div>
+            <div class="category-controls">
+                <button class="category-btn" ${index === 0 ? 'disabled' : ''} onclick="event.stopPropagation(); window.moveCategory('${cat}', -1)">▲</button>
+                <button class="category-btn" ${index === sortedCategories.length - 1 ? 'disabled' : ''} onclick="event.stopPropagation(); window.moveCategory('${cat}', 1)">▼</button>
+            </div>
+        `;
+
         catCell.onclick = () => {
             if (collapsedCategories.has(cat)) {
                 collapsedCategories.delete(cat);
@@ -148,7 +149,7 @@ function renderTable(filter = '') {
             if (isCollapsed) tr.classList.add('hidden');
 
             tr.innerHTML = `
-    < td data - label="Imagen" ><img src="${item.img || ''}" class="product-img" onerror="this.style.display='none'"></td>
+                <td data-label="Imagen"><img src="${item.img || ''}" class="product-img" onerror="this.style.display='none'"></td>
                 <td data-label="Producto">
                     <strong>${item.nombre}</strong><br>
                     <small>${item.cat}</small>
@@ -164,53 +165,44 @@ function renderTable(filter = '') {
                     <button class="btn-edit" onclick="window.editItem('${item.id}')">Editar</button>
                     <button class="btn-delete" style="background:#ff5252; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="window.deleteItem('${item.id}')">Eliminar</button>
                 </td>
-`;
+            `;
             tbody.appendChild(tr);
         });
     });
 }
 
-// --- WINDOW HELPERS FOR CATEGORY ---
+// --- WINDOW HELPERS ---
 window.moveCategory = async (cat, direction) => {
     const index = categoryOrder.indexOf(cat);
     if (index === -1) return;
-    
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= categoryOrder.length) return;
-    
-    // Swap
+
     [categoryOrder[index], categoryOrder[newIndex]] = [categoryOrder[newIndex], categoryOrder[index]];
-    
     await saveCategoryOrder();
     renderTable(document.getElementById('searchInput').value);
 };
 
-// --- ACTIONS ---
 window.toggleStatus = async (id, currentStatus) => {
     try {
         const newStatus = currentStatus === 'Disponible' ? 'No disponible' : 'Disponible';
-        const productRef = doc(db, "productos_sielu", id);
-        await updateDoc(productRef, {
-            Estado: newStatus
-        });
+        await updateDoc(doc(db, "productos_sielu", id), { Estado: newStatus });
         await fetchProducts();
     } catch (e) {
         console.error("Error updating status: ", e);
-        alert("Error al actualizar estado.");
     }
-}
+};
 
 window.deleteItem = async (id) => {
-    if (confirm('¿Seguro que deseas eliminar este producto?')) {
+    if (confirm('¿Eliminar este producto?')) {
         try {
             await deleteDoc(doc(db, "productos_sielu", id));
             await fetchProducts();
         } catch (e) {
             console.error("Error deleting doc: ", e);
-            alert("Error al eliminar.");
         }
     }
-}
+};
 
 window.editItem = (id) => {
     const item = allProducts.find(i => i.id === id);
@@ -224,22 +216,16 @@ window.editItem = (id) => {
     document.getElementById('img').value = item.img;
     document.getElementById('sheet').value = item.ficha;
 
-    const submitBtn = document.getElementById('submitBtn');
-    const cancelBtn = document.getElementById('cancelBtn');
-    const form = document.getElementById('productForm');
-
-    submitBtn.textContent = 'Guardar cambios';
-    cancelBtn.style.display = 'block';
-    form.classList.add('editing');
-
-    form.scrollIntoView({ behavior: 'smooth' });
-}
+    document.getElementById('submitBtn').textContent = 'Guardar cambios';
+    document.getElementById('cancelBtn').style.display = 'block';
+    document.getElementById('productForm').classList.add('editing');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
 // --- FORM HANDLING ---
 const form = document.getElementById('productForm');
 const submitBtn = document.getElementById('submitBtn');
 const cancelBtn = document.getElementById('cancelBtn');
-const searchInput = document.getElementById('searchInput');
 
 function resetForm() {
     form.reset();
@@ -253,10 +239,9 @@ cancelBtn.addEventListener('click', resetForm);
 
 form.addEventListener('submit', async e => {
     e.preventDefault();
-
     const id = document.getElementById('productId').value;
     const cat = document.getElementById('cat').value.trim();
-    const itemDataNormalized = {
+    const data = {
         Categoria: cat,
         Nombre: document.getElementById('nombre').value.trim(),
         CodigoFacturacion: document.getElementById('codigo').value.trim(),
@@ -266,22 +251,29 @@ form.addEventListener('submit', async e => {
         fechaUpdate: new Date()
     };
 
-    submitBtn.textContent = "Guardando...";
     submitBtn.disabled = true;
-
     try {
         if (id) {
-            const productRef = doc(db, "productos_sielu", id);
-            await updateDoc(productRef, itemDataNormalized);
-            alert("Producto modificado con éxito");
+            await updateDoc(doc(db, "productos_sielu", id), data);
         } else {
-document.getElementById('searchInput').addEventListener('input', e => renderTable(e.target.value));
+            data.Estado = 'Disponible';
+            await addDoc(collection(db, "productos_sielu"), data);
+        }
 
-document.getElementById('cancelBtn').onclick = () => {
-    document.getElementById('productForm').reset();
-    document.getElementById('productId').value = '';
-    document.getElementById('submitBtn').textContent = 'Agregar Producto';
-    document.getElementById('cancelBtn').style.display = 'none';
-};
+        if (!categoryOrder.includes(cat)) {
+            categoryOrder.push(cat);
+            await saveCategoryOrder();
+        }
+
+        resetForm();
+        await fetchProducts();
+    } catch (e) {
+        alert("Error: " + e.message);
+    } finally {
+        submitBtn.disabled = false;
+    }
+});
+
+document.getElementById('searchInput').addEventListener('input', e => renderTable(e.target.value));
 
 fetchProducts();
