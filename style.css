@@ -249,12 +249,12 @@ textarea {
 /* --- FLIPBOOK STYLES (Issuu-style) --- */
 .book-viewport {
     width: 100%;
+    min-height: 750px;
     height: calc(100vh - 200px);
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 2rem;
-    overflow: hidden;
     background: #fdfdfd;
 }
 
@@ -263,7 +263,7 @@ textarea {
 }
 
 .page {
-    padding: 3rem;
+    padding: 2.5rem;
     background-color: var(--sielu-white);
     color: var(--sielu-text-dark);
     box-shadow: inset 3px 0 10px rgba(0, 0, 0, 0.02);
@@ -423,7 +423,8 @@ textarea {
     }
 
     .book-viewport {
-        height: 75vh;
+        height: 80vh;
+        min-height: 550px;
         padding: 1rem;
     }
 

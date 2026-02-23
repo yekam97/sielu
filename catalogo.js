@@ -142,11 +142,11 @@ function initFlipbook() {
 
     pageFlip = new PageFlip(document.getElementById('bookContainer'), {
         width: 550, // base page width
-        height: 733, // base page height
-        size: "stretch",
-        minWidth: 315,
+        height: 750, // base page height
+        size: "fit", // usar 'fit' asegura que mantenga la proporción y no te aplaste el contenido
+        minWidth: isMobile ? 320 : 450,
         maxWidth: 1000,
-        minHeight: 420,
+        minHeight: isMobile ? 500 : 700,
         maxHeight: 1350,
         maxShadowOpacity: 0.5,
         showCover: true,
