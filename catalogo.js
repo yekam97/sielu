@@ -98,7 +98,7 @@ function renderBook() {
                         </div>
                         
                         <div style="text-align: center; margin: 1rem 0;">
-                            <img src="${item.img}" style="max-height: 250px; width: auto; max-width: 100%; object-fit: contain;">
+                            <img src="${item.img}" style="max-height: 200px; width: auto; max-width: 100%; object-fit: contain;">
                         </div>
 
                         <div class="page-tech-grid">

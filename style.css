@@ -295,17 +295,20 @@ textarea {
 
 .page-info-header {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
     border-bottom: 2px solid var(--sielu-accent);
-    padding-bottom: 0.5rem;
-    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    gap: 0.5rem;
 }
 
 .page-info-header h2 {
     font-family: var(--font-serif);
-    font-size: 2rem;
+    font-size: 1.6rem;
     margin: 0;
+    line-height: 1.3;
     color: var(--sielu-text-dark);
 }
 
@@ -325,7 +328,7 @@ textarea {
 }
 
 .page-tech-drawing {
-    max-height: 200px;
+    max-height: 140px;
     width: auto;
     max-width: 100%;
     object-fit: contain;
