@@ -246,117 +246,119 @@ textarea {
     font-family: inherit;
 }
 
-/* --- CATALOG PAGE --- */
-.catalog-container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 0 1rem;
+/* --- FLIPBOOK STYLES (Issuu-style) --- */
+.book-viewport {
+    width: 100%;
+    height: calc(100vh - 200px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    overflow: hidden;
+    background: #fdfdfd;
 }
 
-.catalog-item {
-    background: var(--sielu-white);
-    border-radius: var(--border-radius);
+.container--book {
+    box-shadow: 0 50px 100px rgba(0, 0, 0, 0.15);
+}
+
+.page {
     padding: 3rem;
-    margin-bottom: 3rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-    border-bottom: 2px solid var(--sielu-accent);
-    display: grid;
-    grid-template-columns: 250px 1fr 300px;
-    gap: 3rem;
-    position: relative;
+    background-color: var(--sielu-white);
+    color: var(--sielu-text-dark);
+    box-shadow: inset 3px 0 10px rgba(0, 0, 0, 0.02);
+    display: flex;
+    flex-direction: column;
 }
 
-.catalog-item:last-child {
-    margin-bottom: 5rem;
+.page.-cover {
+    background-color: var(--sielu-accent);
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    box-shadow: none;
+    border: none;
 }
 
-.catalog-left-images {
+.page-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.page-catalog-item {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
 }
 
-.catalog-main-img {
-    width: 100%;
-    aspect-ratio: 1/1;
-    object-fit: contain;
-    background: #fff;
-    border: 1px solid #f0f0f0;
-    border-radius: 4px;
-}
-
-.catalog-info h2 {
-    font-family: var(--font-serif);
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-    letter-spacing: 1px;
-}
-
-.catalog-id {
-    font-size: 1.1rem;
-    color: var(--sielu-text-muted);
-    margin-bottom: 2rem;
-    display: block;
-}
-
-.tech-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 2rem;
-    margin: 2rem 0;
-}
-
-.tech-item {
-    text-align: center;
-}
-
-.tech-label {
-    display: block;
-    color: var(--sielu-accent);
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
-}
-
-.tech-value {
-    font-weight: 500;
-    font-size: 1.1rem;
-}
-
-.catalog-right {
+.page-info-header {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-left: 1px solid #eee;
-    padding-left: 2rem;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid var(--sielu-accent);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
 }
 
-.tech-drawing {
+.page-info-header h2 {
+    font-family: var(--font-serif);
+    font-size: 2rem;
+    margin: 0;
+    color: var(--sielu-text-dark);
+}
+
+.page-tech-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    font-size: 0.9rem;
+    margin: 1.5rem 0;
+}
+
+.page-drawing-box {
+    margin-top: auto;
+    text-align: right;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 1.5rem;
+}
+
+.page-tech-drawing {
+    max-height: 200px;
+    width: auto;
     max-width: 100%;
-    height: auto;
+    object-fit: contain;
 }
 
-.page-number {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    font-size: 1.2rem;
+.page-footer {
+    margin-top: 2rem;
+    text-align: center;
     font-family: var(--font-serif);
     color: #ccc;
+    font-size: 1rem;
+}
+
+.flip-hint {
+    text-align: center;
+    padding: 1rem;
+    color: var(--sielu-text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+    background: #f8f8f8;
+}
+
+.loading-catalog {
+    padding: 5rem;
+    text-align: center;
+    font-size: 1.2rem;
+    color: var(--sielu-accent);
 }
 
 /* --- RESPONSIVE --- */
 @media (max-width: 1024px) {
-    .catalog-item {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .catalog-right {
-        grid-column: span 2;
-        border-left: none;
-        border-top: 1px solid #eee;
-        padding-top: 2rem;
-        padding-left: 0;
+    .page {
+        padding: 2rem;
     }
 }
 
@@ -417,20 +419,16 @@ textarea {
         display: none;
     }
 
-    .catalog-item {
-        grid-template-columns: 1fr;
+    .book-viewport {
+        height: 75vh;
+        padding: 1rem;
+    }
+
+    .page {
         padding: 1.5rem;
     }
 
-    .catalog-right {
-        grid-column: span 1;
-    }
-
-    .tech-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .catalog-info h2 {
-        font-size: 2rem;
+    .page-info-header h2 {
+        font-size: 1.5rem;
     }
 }

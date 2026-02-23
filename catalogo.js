@@ -1,8 +1,10 @@
 import { collection, getDocs, query, doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase-config.js";
+import { PageFlip } from "page-flip";
 
 let allProducts = [];
 let categoryOrder = [];
+let pageFlip = null;
 
 async function fetchConfig() {
     try {
@@ -41,27 +43,19 @@ async function fetchProducts() {
             });
         });
 
-        renderCatalog();
+        // Group and prepare pages
+        renderBook();
     } catch (error) {
         console.error("Error fetching products: ", error);
-        document.getElementById('catalogContent').innerHTML = '<p>Error cargando el catálogo.</p>';
+        document.getElementById('bookContainer').innerHTML = '<p>Error cargando el catálogo interactivo.</p>';
     }
 }
 
-function renderCatalog(filter = '') {
-    const container = document.getElementById('catalogContent');
+function renderBook() {
+    const container = document.getElementById('bookContainer');
     container.innerHTML = '';
 
-    let items = allProducts.filter(p => p.estado !== 'No disponible');
-
-    if (filter) {
-        const lowerFilter = filter.toLowerCase();
-        items = items.filter(item =>
-            item.nombre.toLowerCase().includes(lowerFilter) ||
-            item.codigo.toLowerCase().includes(lowerFilter) ||
-            item.cat.toLowerCase().includes(lowerFilter)
-        );
-    }
+    const items = allProducts.filter(p => p.estado !== 'No disponible');
 
     const grouped = {};
     items.forEach(item => {
@@ -75,60 +69,107 @@ function renderCatalog(filter = '') {
         if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
     });
 
-    let globalIndex = 1;
+    // 1. Portada
+    const cover = document.createElement('div');
+    cover.className = 'page -cover';
+    cover.setAttribute('data-density', 'hard');
+    cover.innerHTML = `
+        <div class="page-content">
+            <p style="font-family: var(--font-serif); font-size: 1.5rem; color: rgba(26,26,26,0.6);">Sielu</p>
+            <h1 style="font-family: var(--font-serif); font-size: 4rem; margin: 1rem 0;">Catálogo Visual</h1>
+            <p style="font-family: var(--font-serif); font-size: 1.2rem;">Colección Profesional 2026</p>
+            <div style="margin-top: 4rem; width: 60px; height: 2px; background: var(--sielu-text-dark);"></div>
+        </div>
+    `;
+    container.appendChild(cover);
 
+    // 2. Páginas de productos (2 por spread -> 1 por página física para mayor claridad visual)
+    let pageCounter = 1;
     sortedCategories.forEach(cat => {
-        // We could add a category title if needed, but the image shows a continuous layout
         grouped[cat].forEach(item => {
-            const itemEl = document.createElement('div');
-            itemEl.className = 'catalog-item';
+            const pageEl = document.createElement('div');
+            pageEl.className = 'page';
+            pageEl.innerHTML = `
+                <div class="page-content">
+                    <div class="page-catalog-item">
+                        <div class="page-info-header">
+                            <h2>${item.nombre}</h2>
+                            <span style="font-size: 0.9rem; color: #888;">${item.codigo}</span>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 1rem 0;">
+                            <img src="${item.img}" style="max-height: 250px; width: auto; max-width: 100%; object-fit: contain;">
+                        </div>
 
-            itemEl.innerHTML = `
-                <div class="page-number">${globalIndex++}</div>
-                <div class="catalog-left-images">
-                    <img src="${item.img}" class="catalog-main-img" alt="${item.nombre}">
-                </div>
-                <div class="catalog-info">
-                    <h2>${item.nombre}</h2>
-                    <span class="catalog-id">${item.codigo}</span>
-                    <p style="margin-bottom: 2rem;">Chasis de alta calidad para iluminación profesional.</p>
-                    
-                    <div class="tech-grid">
-                        <div class="tech-item">
-                            <span class="tech-label">Tipo lámpara</span>
-                            <span class="tech-value">${item.cat}</span>
+                        <div class="page-tech-grid">
+                            <div><span style="color:var(--sielu-accent); display:block; font-size: 0.75rem;">Material</span> <b>${item.material}</b></div>
+                            <div><span style="color:var(--sielu-accent); display:block; font-size: 0.75rem;">Grado IP</span> <b>${item.ip}</b></div>
+                            <div><span style="color:var(--sielu-accent); display:block; font-size: 0.75rem;">Color</span> <b>${item.color}</b></div>
+                            <div><span style="color:var(--sielu-accent); display:block; font-size: 0.75rem;">Temp.</span> <b>${item.temp}</b></div>
                         </div>
-                        <div class="tech-item">
-                            <span class="tech-label">Material</span>
-                            <span class="tech-value">${item.material}</span>
+
+                        ${item.dibujo ? `
+                        <div class="page-drawing-box">
+                            <img src="${item.dibujo}" class="page-tech-drawing" alt="Dibujo técnico">
                         </div>
-                        <div class="tech-item">
-                            <span class="tech-label">Grado IP</span>
-                            <span class="tech-value">${item.ip}</span>
-                        </div>
-                        <div class="tech-item">
-                            <span class="tech-label">Color</span>
-                            <span class="tech-value">${item.color}</span>
-                        </div>
-                        <div class="tech-item">
-                            <span class="tech-label">Color Temp.</span>
-                            <span class="tech-value">${item.temp}</span>
-                        </div>
-                        <div class="tech-item">
-                            <span class="tech-label">Garantía</span>
-                            <span class="tech-value">${item.garantia}</span>
-                        </div>
+                        ` : ''}
                     </div>
-                </div>
-                <div class="catalog-right">
-                    ${item.dibujo ? `<img src="${item.dibujo}" class="tech-drawing" alt="Dibujo técnico">` : '<span style="color:#ccc italic">Sin dibujo técnico</span>'}
+                    <div class="page-footer">Página ${pageCounter++}</div>
                 </div>
             `;
-            container.appendChild(itemEl);
+            container.appendChild(pageEl);
         });
     });
+
+    // 3. Contraportada
+    const backCover = document.createElement('div');
+    backCover.className = 'page -cover';
+    backCover.setAttribute('data-density', 'hard');
+    backCover.innerHTML = `
+        <div class="page-content">
+            <h2 style="font-family: var(--font-serif);">SIELU</h2>
+            <p>Iluminación que inspira</p>
+        </div>
+    `;
+    container.appendChild(backCover);
+
+    initFlipbook();
 }
 
-document.getElementById('searchInput').addEventListener('input', e => renderCatalog(e.target.value));
+function initFlipbook() {
+    const screenWidth = window.innerWidth;
+    const isMobile = screenWidth < 768;
+
+    pageFlip = new PageFlip(document.getElementById('bookContainer'), {
+        width: 550, // base page width
+        height: 733, // base page height
+        size: "stretch",
+        minWidth: 315,
+        maxWidth: 1000,
+        minHeight: 420,
+        maxHeight: 1350,
+        maxShadowOpacity: 0.5,
+        showCover: true,
+        mobileScrollSupport: false // true if we want to allow scrolling on mobile
+    });
+
+    pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+    document.getElementById('pageControls').style.display = 'flex';
+    updateCounter();
+
+    pageFlip.on('flip', (e) => {
+        updateCounter();
+    });
+
+    document.getElementById('btnNext').onclick = () => pageFlip.flipNext();
+    document.getElementById('btnPrev').onclick = () => pageFlip.flipPrev();
+}
+
+function updateCounter() {
+    const current = pageFlip.getCurrentPageIndex() + 1;
+    const total = pageFlip.getPageCount();
+    document.getElementById('pageCounter').innerText = `${current} / ${total}`;
+}
 
 fetchProducts();

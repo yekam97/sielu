@@ -18,14 +18,22 @@
     </header>
 
     <div class="controls-container">
-        <input type="text" id="searchInput" placeholder="Buscar productos en el catálogo...">
         <a href="index.html" class="btn-primary" style="background: #eee;">Volver al Inicio</a>
+        <div id="pageControls" style="display: none; align-items: center; gap: 1rem;">
+            <button class="btn-primary" id="btnPrev">Página Anterior</button>
+            <span id="pageCounter">1 / 1</span>
+            <button class="btn-primary" id="btnNext">Página Siguiente</button>
+        </div>
     </div>
 
-    <div id="catalogContent" class="catalog-container">
-        <!-- Catalog items will be injected here -->
-        <h3 style="text-align: center; color: #aaa; margin-top: 5rem;">Cargando catálogo...</h3>
+    <div class="book-viewport">
+        <div class="container--book" id="bookContainer">
+            <!-- Pages will be injected here -->
+            <div class="loading-catalog">Cargando catálogo interactivo...</div>
+        </div>
     </div>
+
+    <div class="flip-hint">Usa las flechas o arrastra las esquinas para pasar la página</div>
 
     <script type="module" src="catalogo.js"></script>
 </body>
