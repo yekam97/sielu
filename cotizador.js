@@ -43,7 +43,7 @@ async function fetchProducts() {
                     id: doc.id,
                     nombre: data.Nombre || '',
                     codigo: data.CodigoFacturacion || '',
-                    precioBase: parseFloat(data.PrecioAntesIva) || 0
+                    precioBase: parseFloat(data.PrecioAntesIVA) || 0
                 });
             }
         });
