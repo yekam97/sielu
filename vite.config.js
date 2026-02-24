@@ -9,6 +9,7 @@ export default defineConfig({
                 view: resolve(__dirname, 'view.html'),
                 admin: resolve(__dirname, 'admin.html'),
                 catalogo: resolve(__dirname, 'catalogo.html'),
+                cotizador: resolve(__dirname, 'cotizador.html'),
             },
         },
     },
