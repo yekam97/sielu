@@ -3,15 +3,35 @@ import { db } from "./firebase-config.js";
 
 // --- AUTHENTICATION ---
 const PASSWORD = "Sielu2026";
+const loginModal = document.getElementById('loginModal');
+const passwordInput = document.getElementById('passwordInput');
+const loginBtn = document.getElementById('loginBtn');
+const errorMsg = document.getElementById('errorMsg');
+
 if (!sessionStorage.getItem('sielu_auth')) {
-    const input = prompt("Introduce la contraseña de administrador Sielu:");
-    if (input === PASSWORD) {
+    loginModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // Prevent scrolling while logging in
+
+    loginBtn.addEventListener('click', checkPassword);
+    passwordInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') checkPassword();
+    });
+} else {
+    // Already authenticated
+    fetchProducts();
+}
+
+function checkPassword() {
+    if (passwordInput.value === PASSWORD) {
         sessionStorage.setItem('sielu_auth', 'true');
+        loginModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        fetchProducts();
     } else {
-        alert("Contraseña incorrecta.");
-        window.location.href = "index.html";
+        errorMsg.style.display = 'block';
     }
 }
+
 
 let allProducts = [];
 let categoryOrder = [];
@@ -291,7 +311,4 @@ form.addEventListener('submit', async e => {
         submitBtn.disabled = false;
     }
 });
-
 document.getElementById('searchInput').addEventListener('input', e => renderTable(e.target.value));
-
-fetchProducts();
