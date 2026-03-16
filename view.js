@@ -33,7 +33,7 @@ async function fetchProducts() {
                 codigo: data.CodigoFacturacion || '',
                 precio: data.PrecioAntesIVA || 0,
                 ficha: data.FichaTecnica || '',
-                orden: parseInt(data.Orden) || 0,
+                orden: Number(data.Orden) || 0,
                 estado: data.Estado || 'Disponible'
             });
         });

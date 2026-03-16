@@ -163,7 +163,7 @@ function renderTable(filter = '') {
                        class="cat-order-input" 
                        value="${categoryOrder.indexOf(cat) + 1}" 
                        onclick="event.stopPropagation()"
-                       onchange="window.updateCategoryOrder('${cat.replace(/'/g, "\\'")}', this.value)"
+                       onchange="window.updateCategoryOrder(this, '${cat.replace(/'/g, "\\'")}', this.value)"
                        style="width: 50px; padding: 2px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
             </div>
         `;
@@ -196,7 +196,7 @@ function renderTable(filter = '') {
                     <input type="number" 
                            class="order-input" 
                            value="${item.orden || 0}" 
-                           onchange="window.updateProductOrder('${item.id}', this.value)"
+                           onchange="window.updateProductOrder(this, '${item.id}', this.value)"
                            style="width: 60px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
                 </td>
                 <td data-label="Precio">$${parseFloat(item.precio).toLocaleString('es-CO')}</td>
@@ -216,13 +216,15 @@ function renderTable(filter = '') {
 }
 
 // --- WINDOW HELPERS ---
-window.updateCategoryOrder = async (catName, newOrder) => {
+window.updateCategoryOrder = async (inputEl, catName, newOrder) => {
     let newIdx = parseInt(newOrder) - 1; // 1-based user input
     if (isNaN(newIdx)) return;
 
     // Normalize index
     const currentIdx = categoryOrder.indexOf(catName);
     if (currentIdx === -1) return;
+
+    if (inputEl) inputEl.style.background = '#e3f2fd'; // Visual feedback "saving"
 
     // Remove from old position and insert at new
     categoryOrder.splice(currentIdx, 1);
@@ -234,19 +236,30 @@ window.updateCategoryOrder = async (catName, newOrder) => {
         categoryOrder.splice(newIdx, 0, catName);
     }
 
-    await saveCategoryOrder();
-    renderTable(document.getElementById('searchInput').value);
+    try {
+        await saveCategoryOrder();
+        if (inputEl) inputEl.style.background = '#c8e6c9'; // Success
+        setTimeout(() => renderTable(document.getElementById('searchInput').value), 500);
+    } catch (e) {
+        console.error("Error saving category order:", e);
+        if (inputEl) inputEl.style.background = '#ffcdd2'; // Error
+    }
 };
 
-window.updateProductOrder = async (id, newOrder) => {
+window.updateProductOrder = async (inputEl, id, newOrder) => {
     try {
+        if (inputEl) inputEl.style.background = '#e3f2fd'; // Visual feedback
         await updateDoc(doc(db, "productos_sielu", id), { Orden: parseInt(newOrder) || 0 });
-        // Refresh local data so sorting stays correct if filtered/re-rendered
+
+        // Refresh local data
         const item = allProducts.find(p => p.id === id);
         if (item) item.orden = parseInt(newOrder) || 0;
-        console.log("Orden actualizado:", id, newOrder);
+
+        if (inputEl) inputEl.style.background = '#c8e6c9'; // Success
+        setTimeout(() => renderTable(document.getElementById('searchInput').value), 500);
     } catch (e) {
         console.error("Error updating order: ", e);
+        if (inputEl) inputEl.style.background = '#ffcdd2'; // Error
         alert("Error al actualizar el orden.");
     }
 };
