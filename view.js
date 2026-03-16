@@ -6,7 +6,7 @@ let categoryOrder = [];
 
 async function fetchConfig() {
     try {
-        const configRef = doc(db, "sielu_config", "categories");
+        const configRef = doc(db, "productos_sielu", "--category-config--");
         const configSnap = await getDoc(configRef);
         if (configSnap.exists()) {
             categoryOrder = configSnap.data().order || [];
@@ -24,6 +24,8 @@ async function fetchProducts() {
 
         allProducts = [];
         querySnapshot.forEach((doc) => {
+            if (doc.id === "--category-config--") return; // Ignorar config
+
             const data = doc.data();
             allProducts.push({
                 id: doc.id,

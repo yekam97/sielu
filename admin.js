@@ -40,7 +40,7 @@ let configLoaded = false; // Flag to prevent overwriting if fetch fails
 
 async function fetchConfig() {
     try {
-        const configRef = doc(db, "sielu_config", "categories");
+        const configRef = doc(db, "productos_sielu", "--category-config--");
         const configSnap = await getDoc(configRef);
         if (configSnap.exists()) {
             categoryOrder = configSnap.data().order || [];
@@ -62,8 +62,9 @@ async function saveCategoryOrder() {
         return;
     }
     try {
-        const configRef = doc(db, "sielu_config", "categories");
+        const configRef = doc(db, "productos_sielu", "--category-config--");
         await setDoc(configRef, { order: categoryOrder }, { merge: true });
+        configLoaded = true; // Si pudimos guardar aquí, asumimos que tenemos control
     } catch (error) {
         console.error("Error saving category order:", error);
     }
@@ -77,6 +78,8 @@ async function fetchProducts() {
 
         allProducts = [];
         querySnapshot.forEach((doc) => {
+            if (doc.id === "--category-config--") return; // Ignorar doc de configuración
+
             const data = doc.data();
             allProducts.push({
                 id: doc.id,
