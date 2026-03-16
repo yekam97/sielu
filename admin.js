@@ -60,13 +60,19 @@ async function saveCategoryOrder() {
 
 async function fetchProducts() {
     try {
-        await fetchConfig();
         const q = query(collection(db, "productos_sielu"));
         const querySnapshot = await getDocs(q);
 
         allProducts = [];
+        let foundConfig = false;
+
         querySnapshot.forEach((doc) => {
-            if (doc.id === "--category-config--") return; // Ignorar doc de configuración
+            if (doc.id === "--category-config--") {
+                categoryOrder = doc.data().order || [];
+                foundConfig = true;
+                console.log("Configuración de categorías encontrada en colección:", categoryOrder);
+                return;
+            }
 
             const data = doc.data();
             allProducts.push({
@@ -88,16 +94,20 @@ async function fetchProducts() {
             });
         });
 
+        configLoaded = true; // Si llegamos aquí, tenemos acceso a la colección
+        if (!foundConfig) {
+            console.log("No se encontró el documento de configuración. Se creará al primer cambio.");
+        }
+
         // Update categoryOrder if new categories exist
         const currentCats = [...new Set(allProducts.map(p => p.cat))];
         let changed = false;
 
-        // Solo agregar categorías nuevas, no eliminar ni reordenar automáticamente aquí
         currentCats.forEach(cat => {
             if (!categoryOrder.includes(cat)) {
                 categoryOrder.push(cat);
                 changed = true;
-                console.log("Nueva categoría detectada y añadida al final:", cat);
+                console.log("Nueva categoría detectada:", cat);
             }
         });
 
@@ -108,6 +118,7 @@ async function fetchProducts() {
         renderTable(document.getElementById('searchInput').value);
     } catch (error) {
         console.error("Error fetching products: ", error);
+        configLoaded = false;
     }
 }
 
