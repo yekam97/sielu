@@ -4,27 +4,22 @@ import { db } from "./firebase-config.js";
 let allProducts = [];
 let categoryOrder = [];
 
+// Configuración integrada en fetchProducts
 async function fetchConfig() {
-    try {
-        const configRef = doc(db, "productos_sielu", "--category-config--");
-        const configSnap = await getDoc(configRef);
-        if (configSnap.exists()) {
-            categoryOrder = configSnap.data().order || [];
-        }
-    } catch (error) {
-        console.error("Error fetching config:", error);
-    }
+    return;
 }
 
 async function fetchProducts() {
     try {
-        await fetchConfig();
         const q = query(collection(db, "productos_sielu"));
         const querySnapshot = await getDocs(q);
 
         allProducts = [];
         querySnapshot.forEach((doc) => {
-            if (doc.id === "--category-config--") return; // Ignorar config
+            if (doc.id === "--category-config--") {
+                categoryOrder = doc.data().order || [];
+                return;
+            }
 
             const data = doc.data();
             allProducts.push({

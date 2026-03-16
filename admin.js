@@ -38,22 +38,10 @@ let categoryOrder = [];
 let collapsedCategories = new Set();
 let configLoaded = false; // Flag to prevent overwriting if fetch fails
 
+// La configuración se buscará directamente dentro de fetchProducts para evitar llamadas extra
 async function fetchConfig() {
-    try {
-        const configRef = doc(db, "productos_sielu", "--category-config--");
-        const configSnap = await getDoc(configRef);
-        if (configSnap.exists()) {
-            categoryOrder = configSnap.data().order || [];
-            console.log("Config de categorías cargada:", categoryOrder);
-        } else {
-            console.log("No se encontró config de categorías, usando vacío.");
-            categoryOrder = [];
-        }
-        configLoaded = true; // Success
-    } catch (error) {
-        console.error("Error fetching config:", error);
-        configLoaded = false; // Failed
-    }
+    // Esta función queda vacía o se puede eliminar, ya que fetchProducts hará el trabajo
+    return;
 }
 
 async function saveCategoryOrder() {
