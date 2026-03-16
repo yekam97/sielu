@@ -81,6 +81,7 @@ async function fetchProducts() {
                 temp: data.Temp || '',
                 garantia: data.Garantia || '',
                 dibujo: data.Dibujo || '',
+                orden: parseInt(data.Orden) || 0,
                 estado: data.Estado || 'Disponible'
             });
         });
@@ -128,6 +129,11 @@ function renderTable(filter = '') {
         const cat = item.cat;
         if (!grouped[cat]) grouped[cat] = [];
         grouped[cat].push(item);
+    });
+
+    // Sort products within categories by 'orden'
+    Object.keys(grouped).forEach(cat => {
+        grouped[cat].sort((a, b) => (a.orden || 0) - (b.orden || 0));
     });
 
     const sortedCategories = categoryOrder.filter(cat => grouped[cat]);
@@ -178,7 +184,7 @@ function renderTable(filter = '') {
                 <td data-label="Imagen"><img src="${item.img || ''}" class="product-img" onerror="this.style.display='none'"></td>
                 <td data-label="Producto">
                     <strong>${item.nombre}</strong><br>
-                    <small>${item.cat}</small>
+                    <small>${item.cat}</small> | <small>Orden: ${item.orden || 0}</small>
                 </td>
                 <td data-label="Código">${item.codigo}</td>
                 <td data-label="Precio">$${parseFloat(item.precio).toLocaleString('es-CO')}</td>
@@ -247,6 +253,7 @@ window.editItem = (id) => {
     document.getElementById('temp').value = item.temp || '';
     document.getElementById('garantia').value = item.garantia || '';
     document.getElementById('dibujo').value = item.dibujo || '';
+    document.getElementById('orden').value = item.orden || 0;
 
     document.getElementById('submitBtn').textContent = 'Guardar cambios';
     document.getElementById('cancelBtn').style.display = 'block';
@@ -286,6 +293,7 @@ form.addEventListener('submit', async e => {
         Temp: document.getElementById('temp').value.trim(),
         Garantia: document.getElementById('garantia').value.trim(),
         Dibujo: document.getElementById('dibujo').value.trim(),
+        Orden: parseInt(document.getElementById('orden').value) || 0,
         fechaUpdate: new Date()
     };
 

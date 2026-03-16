@@ -33,6 +33,7 @@ async function fetchProducts() {
                 codigo: data.CodigoFacturacion || '',
                 precio: data.PrecioAntesIVA || 0,
                 ficha: data.FichaTecnica || '',
+                orden: parseInt(data.Orden) || 0,
                 estado: data.Estado || 'Disponible'
             });
         });
@@ -75,6 +76,11 @@ function renderTable(filter = '') {
         const cat = item.cat;
         if (!grouped[cat]) grouped[cat] = [];
         grouped[cat].push(item);
+    });
+
+    // Sort products within categories by 'orden'
+    Object.keys(grouped).forEach(cat => {
+        grouped[cat].sort((a, b) => (a.orden || 0) - (b.orden || 0));
     });
 
     // Use dynamic categoryOrder
