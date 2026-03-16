@@ -184,9 +184,16 @@ function renderTable(filter = '') {
                 <td data-label="Imagen"><img src="${item.img || ''}" class="product-img" onerror="this.style.display='none'"></td>
                 <td data-label="Producto">
                     <strong>${item.nombre}</strong><br>
-                    <small>${item.cat}</small> | <small>Orden: ${item.orden || 0}</small>
+                    <small>${item.cat}</small>
                 </td>
                 <td data-label="Código">${item.codigo}</td>
+                <td data-label="Orden">
+                    <input type="number" 
+                           class="order-input" 
+                           value="${item.orden || 0}" 
+                           onchange="window.updateProductOrder('${item.id}', this.value)"
+                           style="width: 60px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
+                </td>
                 <td data-label="Precio">$${parseFloat(item.precio).toLocaleString('es-CO')}</td>
                 <td data-label="Estado">
                     <button class="btn-toggle ${item.estado === 'Disponible' ? 'available' : ''}" onclick="window.toggleStatus('${item.id}', '${item.estado}')">
@@ -213,6 +220,19 @@ window.moveCategory = async (cat, direction) => {
     [categoryOrder[index], categoryOrder[newIndex]] = [categoryOrder[newIndex], categoryOrder[index]];
     await saveCategoryOrder();
     renderTable(document.getElementById('searchInput').value);
+};
+
+window.updateProductOrder = async (id, newOrder) => {
+    try {
+        await updateDoc(doc(db, "productos_sielu", id), { Orden: parseInt(newOrder) || 0 });
+        // Refresh local data so sorting stays correct if filtered/re-rendered
+        const item = allProducts.find(p => p.id === id);
+        if (item) item.orden = parseInt(newOrder) || 0;
+        console.log("Orden actualizado:", id, newOrder);
+    } catch (e) {
+        console.error("Error updating order: ", e);
+        alert("Error al actualizar el orden.");
+    }
 };
 
 window.toggleStatus = async (id, currentStatus) => {
@@ -253,7 +273,6 @@ window.editItem = (id) => {
     document.getElementById('temp').value = item.temp || '';
     document.getElementById('garantia').value = item.garantia || '';
     document.getElementById('dibujo').value = item.dibujo || '';
-    document.getElementById('orden').value = item.orden || 0;
 
     document.getElementById('submitBtn').textContent = 'Guardar cambios';
     document.getElementById('cancelBtn').style.display = 'block';
@@ -293,7 +312,6 @@ form.addEventListener('submit', async e => {
         Temp: document.getElementById('temp').value.trim(),
         Garantia: document.getElementById('garantia').value.trim(),
         Dibujo: document.getElementById('dibujo').value.trim(),
-        Orden: parseInt(document.getElementById('orden').value) || 0,
         fechaUpdate: new Date()
     };
 
