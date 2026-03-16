@@ -43,6 +43,10 @@ async function fetchConfig() {
         const configSnap = await getDoc(configRef);
         if (configSnap.exists()) {
             categoryOrder = configSnap.data().order || [];
+            console.log("Config de categorías cargada:", categoryOrder);
+        } else {
+            console.log("No se encontró config de categorías, usando vacío.");
+            categoryOrder = [];
         }
     } catch (error) {
         console.error("Error fetching config:", error);
@@ -89,19 +93,19 @@ async function fetchProducts() {
         // Update categoryOrder if new categories exist
         const currentCats = [...new Set(allProducts.map(p => p.cat))];
         let changed = false;
+
+        // Solo agregar categorías nuevas, no eliminar ni reordenar automáticamente aquí
         currentCats.forEach(cat => {
             if (!categoryOrder.includes(cat)) {
                 categoryOrder.push(cat);
                 changed = true;
+                console.log("Nueva categoría detectada y añadida al final:", cat);
             }
         });
 
-        // Remove empty categories from tracker
-        const oldLen = categoryOrder.length;
-        categoryOrder = categoryOrder.filter(cat => currentCats.includes(cat));
-        if (oldLen !== categoryOrder.length) changed = true;
-
-        if (changed) await saveCategoryOrder();
+        if (changed) {
+            await saveCategoryOrder();
+        }
 
         renderTable(document.getElementById('searchInput').value);
     } catch (error) {
@@ -252,22 +256,30 @@ window.updateCategoryOrder = async (inputEl, catName, newOrder) => {
 };
 
 window.updateProductOrder = async (inputEl, id, newOrder) => {
+    const val = Number(newOrder); // Usar Number para consistencia con view.js
+    if (isNaN(val)) return;
+
     try {
-        const val = parseInt(newOrder) || 0;
-        if (inputEl) inputEl.style.background = '#e3f2fd'; // Visual feedback
+        if (inputEl) inputEl.style.background = '#e3f2fd'; // Azul: Guardando
+
+        console.log(`Guardando nuevo orden para ${id}: ${val}`);
         await updateDoc(doc(db, "productos_sielu", id), { Orden: val });
 
-        // Refresh local data
+        // Actualizar datos locales
         const item = allProducts.find(p => p.id === id);
         if (item) item.orden = val;
 
-        if (inputEl) inputEl.style.background = '#c8e6c9'; // Success
-        // Use a slightly longer timeout to ensure Firestore has settled and user sees the color
-        setTimeout(() => renderTable(document.getElementById('searchInput').value), 1000);
+        if (inputEl) {
+            inputEl.style.background = '#c8e6c9'; // Verde: Éxito
+            setTimeout(() => inputEl.style.background = '', 2000);
+        }
+
+        // Re-ordenar la tabla después de un pequeño delay para que el usuario vea el éxito
+        setTimeout(() => renderTable(document.getElementById('searchInput').value), 800);
     } catch (e) {
-        console.error("Error updating order: ", e);
-        if (inputEl) inputEl.style.background = '#ffcdd2'; // Error
-        alert("Error al actualizar el orden.");
+        console.error("Error al guardar el orden del producto:", e);
+        if (inputEl) inputEl.style.background = '#ffcdd2'; // Rojo: Error
+        alert("Error al guardar. Revisa la consola.");
     }
 };
 
