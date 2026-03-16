@@ -158,8 +158,13 @@ function renderTable(filter = '') {
                 <span>${cat}</span>
             </div>
             <div class="category-controls">
-                <button class="category-btn" ${index === 0 ? 'disabled' : ''} onclick="event.stopPropagation(); window.moveCategory('${cat}', -1)">▲</button>
-                <button class="category-btn" ${index === sortedCategories.length - 1 ? 'disabled' : ''} onclick="event.stopPropagation(); window.moveCategory('${cat}', 1)">▼</button>
+                <span style="font-size: 0.8rem; margin-right: 5px;">Orden:</span>
+                <input type="number" 
+                       class="cat-order-input" 
+                       value="${categoryOrder.indexOf(cat) + 1}" 
+                       onclick="event.stopPropagation()"
+                       onchange="window.updateCategoryOrder('${cat.replace(/'/g, "\\'")}', this.value)"
+                       style="width: 50px; padding: 2px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
             </div>
         `;
 
@@ -211,13 +216,24 @@ function renderTable(filter = '') {
 }
 
 // --- WINDOW HELPERS ---
-window.moveCategory = async (cat, direction) => {
-    const index = categoryOrder.indexOf(cat);
-    if (index === -1) return;
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= categoryOrder.length) return;
+window.updateCategoryOrder = async (catName, newOrder) => {
+    let newIdx = parseInt(newOrder) - 1; // 1-based user input
+    if (isNaN(newIdx)) return;
 
-    [categoryOrder[index], categoryOrder[newIndex]] = [categoryOrder[newIndex], categoryOrder[index]];
+    // Normalize index
+    const currentIdx = categoryOrder.indexOf(catName);
+    if (currentIdx === -1) return;
+
+    // Remove from old position and insert at new
+    categoryOrder.splice(currentIdx, 1);
+
+    if (newIdx < 0) newIdx = 0;
+    if (newIdx >= categoryOrder.length) {
+        categoryOrder.push(catName);
+    } else {
+        categoryOrder.splice(newIdx, 0, catName);
+    }
+
     await saveCategoryOrder();
     renderTable(document.getElementById('searchInput').value);
 };
