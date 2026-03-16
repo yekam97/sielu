@@ -36,6 +36,7 @@ function checkPassword() {
 let allProducts = [];
 let categoryOrder = [];
 let collapsedCategories = new Set();
+let configLoaded = false; // Flag to prevent overwriting if fetch fails
 
 async function fetchConfig() {
     try {
@@ -48,12 +49,18 @@ async function fetchConfig() {
             console.log("No se encontró config de categorías, usando vacío.");
             categoryOrder = [];
         }
+        configLoaded = true; // Success
     } catch (error) {
         console.error("Error fetching config:", error);
+        configLoaded = false; // Failed
     }
 }
 
 async function saveCategoryOrder() {
+    if (!configLoaded) {
+        console.warn("No se puede guardar el orden de categorías porque la carga inicial falló (¿Permisos?)");
+        return;
+    }
     try {
         const configRef = doc(db, "sielu_config", "categories");
         await setDoc(configRef, { order: categoryOrder }, { merge: true });
