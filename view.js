@@ -33,7 +33,7 @@ async function fetchProducts() {
                 codigo: data.CodigoFacturacion || '',
                 precio: data.PrecioAntesIVA || 0,
                 ficha: data.FichaTecnica || '',
-                orden: Number(data.Orden) || 0,
+                orden: Number(data.Orden ?? data.orden ?? 0),
                 estado: data.Estado || 'Disponible'
             });
         });
@@ -78,9 +78,14 @@ function renderTable(filter = '') {
         grouped[cat].push(item);
     });
 
-    // Sort products within categories by 'orden'
+    // Sort products within categories: orden primary, name secondary
     Object.keys(grouped).forEach(cat => {
-        grouped[cat].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+        grouped[cat].sort((a, b) => {
+            const ordA = Number(a.orden) || 0;
+            const ordB = Number(b.orden) || 0;
+            if (ordA !== ordB) return ordA - ordB;
+            return (a.nombre || "").localeCompare(b.nombre || "");
+        });
     });
 
     // Use dynamic categoryOrder

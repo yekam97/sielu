@@ -79,9 +79,9 @@ async function fetchProducts() {
                 ip: data.IP || '',
                 color: data.Color || '',
                 temp: data.Temp || '',
-                garantia: data.Garantia || '',
+                garantia: data.Garantia || '-',
                 dibujo: data.Dibujo || '',
-                orden: parseInt(data.Orden) || 0,
+                orden: Number(data.Orden ?? data.orden ?? 0),
                 estado: data.Estado || 'Disponible'
             });
         });
@@ -131,9 +131,14 @@ function renderTable(filter = '') {
         grouped[cat].push(item);
     });
 
-    // Sort products within categories by 'orden'
+    // Sort products within categories: by 'orden' primary, and 'nombre' secondary
     Object.keys(grouped).forEach(cat => {
-        grouped[cat].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+        grouped[cat].sort((a, b) => {
+            const ordA = Number(a.orden) || 0;
+            const ordB = Number(b.orden) || 0;
+            if (ordA !== ordB) return ordA - ordB;
+            return (a.nombre || "").localeCompare(b.nombre || "");
+        });
     });
 
     const sortedCategories = categoryOrder.filter(cat => grouped[cat]);
@@ -248,15 +253,17 @@ window.updateCategoryOrder = async (inputEl, catName, newOrder) => {
 
 window.updateProductOrder = async (inputEl, id, newOrder) => {
     try {
+        const val = parseInt(newOrder) || 0;
         if (inputEl) inputEl.style.background = '#e3f2fd'; // Visual feedback
-        await updateDoc(doc(db, "productos_sielu", id), { Orden: parseInt(newOrder) || 0 });
+        await updateDoc(doc(db, "productos_sielu", id), { Orden: val });
 
         // Refresh local data
         const item = allProducts.find(p => p.id === id);
-        if (item) item.orden = parseInt(newOrder) || 0;
+        if (item) item.orden = val;
 
         if (inputEl) inputEl.style.background = '#c8e6c9'; // Success
-        setTimeout(() => renderTable(document.getElementById('searchInput').value), 500);
+        // Use a slightly longer timeout to ensure Firestore has settled and user sees the color
+        setTimeout(() => renderTable(document.getElementById('searchInput').value), 1000);
     } catch (e) {
         console.error("Error updating order: ", e);
         if (inputEl) inputEl.style.background = '#ffcdd2'; // Error
@@ -341,6 +348,7 @@ form.addEventListener('submit', async e => {
         Temp: document.getElementById('temp').value.trim(),
         Garantia: document.getElementById('garantia').value.trim(),
         Dibujo: document.getElementById('dibujo').value.trim(),
+        Orden: 0, // Default for new products
         fechaUpdate: new Date()
     };
 
