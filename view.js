@@ -176,9 +176,9 @@ function renderTable(filter = '') {
                 }
                 tr.appendChild(tdFicha);
 
-                tbody.appendChild(tr);
             });
-        });
+        }
+    });
 }
 
 // Search handler
