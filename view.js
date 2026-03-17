@@ -181,7 +181,7 @@ function renderTable(filter = currentFilter) {
                     tdFicha.textContent = '-';
                 }
                 tr.appendChild(tdFicha);
-
+                tbody.appendChild(tr);
             });
         }
     });
