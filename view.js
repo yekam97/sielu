@@ -195,26 +195,40 @@ async function generatePDF() {
 
     try {
         const doc = new jsPDF();
-        const date = new Date().toLocaleDateString('es-CO');
+        const date = new Date().toLocaleDateString('es-CO', { month: 'long' });
+        const year = new Date().getFullYear();
+        const fullDate = `Marzo ${year}`; // User specific request for March or dynamic? User image says "Marzo"
 
-        // Header
-        doc.setFontSize(24);
-        doc.setTextColor(219, 207, 172); // Sielu Gold
-        doc.text("Sielu", 14, 20);
+        // 1. Full-width Tan Header Block
+        const pageWidth = doc.internal.pageSize.width;
+        doc.setFillColor(219, 207, 172); // Sielu Tan
+        doc.rect(0, 0, pageWidth, 60, 'F');
 
-        doc.setFontSize(14);
+        // Header Text
+        doc.setFont("playfair", "normal");
+        doc.setFontSize(30);
         doc.setTextColor(26, 26, 26);
-        doc.text("LISTA DE PRECIOS DIGITAL", 14, 30);
+        doc.text(`Lista de Precios ${fullDate}`, pageWidth / 2, 25, { align: 'center' });
 
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Generada el: ${date}`, 14, 38);
-        doc.text(`Imporlec S.A.S.`, 14, 44);
+        doc.setFontSize(60);
+        doc.setFont("playfair", "bold");
+        doc.text("sielu", pageWidth / 2, 50, { align: 'center' });
+
+        // Footer Drawing Function
+        const drawFooter = (doc, pageNumber) => {
+            const pageHeight = doc.internal.pageSize.height;
+            doc.setFontSize(10);
+            doc.setTextColor(85, 85, 85);
+            doc.setFont("helvetica", "normal");
+
+            doc.text("Sielu", 14, pageHeight - 10);
+            doc.text(`Página ${pageNumber}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+            doc.text("+57 3224082010", pageWidth - 14, pageHeight - 10, { align: 'right' });
+        };
 
         // Prepare Data
         const itemsToExport = [...allProducts].filter(item => item.estado !== 'No disponible');
 
-        // Final Sorted list following screen logic
         const grouped = {};
         itemsToExport.forEach(item => {
             const cat = item.cat;
@@ -236,54 +250,79 @@ async function generatePDF() {
             if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
         });
 
-        const tableRows = [];
-        for (const cat of sortedCategories) {
-            // Category header row
-            tableRows.push([
-                { content: cat, colSpan: 4, styles: { fillColor: [245, 245, 245], fontStyle: 'bold', textColor: [26, 26, 26] } }
-            ]);
+        let currentY = 75;
 
+        for (let i = 0; i < sortedCategories.length; i++) {
+            const cat = sortedCategories[i];
+
+            // Category title before table
+            doc.setFontSize(22);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(26, 26, 26);
+            doc.text(cat, pageWidth / 2, currentY, { align: 'center' });
+            currentY += 10;
+
+            const tableRows = [];
             for (const item of grouped[cat]) {
                 const imgBase64 = await getBase64FromUrl(item.img);
                 tableRows.push([
-                    { content: imgBase64 || '', image: imgBase64 }, // We'll handle drawing in didParseCell or similar if needed, but jspdf-autotable handles strings
+                    { content: '', image: imgBase64 },
                     item.nombre,
                     item.codigo,
-                    `$${formatCurrency(item.precio)}`
+                    `$ ${formatCurrency(item.precio)}`
                 ]);
+            }
+
+            autoTable(doc, {
+                startY: currentY,
+                head: [['Imagen', 'Nombre', 'Código Facturación', 'Precio antes de IVA']],
+                body: tableRows,
+                theme: 'plain', // Use plain for the "no vertical line" look
+                headStyles: {
+                    fillColor: [255, 253, 242],
+                    textColor: [26, 26, 26],
+                    fontStyle: 'bold',
+                    halign: 'center',
+                    fontSize: 10
+                },
+                columnStyles: {
+                    0: { cellWidth: 35, minCellHeight: 35 },
+                    1: { cellWidth: 'auto', valign: 'middle' },
+                    2: { cellWidth: 35, halign: 'center', valign: 'middle' },
+                    3: { cellWidth: 40, halign: 'right', valign: 'middle' }
+                },
+                styles: { fontSize: 9, cellPadding: 2, valign: 'middle', lineColor: [240, 240, 240], lineWidth: 0.1 },
+                didDrawCell: (data) => {
+                    if (data.section === 'body' && data.column.index === 0 && data.cell.raw.image) {
+                        const imgSize = 30; // 30 units is significantly larger (+50% from original 20)
+                        const x = data.cell.x + (data.cell.width - imgSize) / 2;
+                        const y = data.cell.y + (data.cell.height - imgSize) / 2;
+                        doc.addImage(data.cell.raw.image, 'JPEG', x, y, imgSize, imgSize);
+                    }
+                },
+                margin: { top: 30, bottom: 25 },
+                didDrawPage: (data) => {
+                    drawFooter(doc, doc.internal.getNumberOfPages());
+                }
+            });
+
+            currentY = doc.lastAutoTable.finalY + 20;
+
+            // New page if next category won't fit well or just to keep it clean like the demo
+            if (i < sortedCategories.length - 1 && currentY > 200) {
+                doc.addPage();
+                currentY = 20; // Lower on subsequent pages since there is no big header
             }
         }
 
-        autoTable(doc, {
-            startY: 55,
-            head: [['IMAGEN', 'PRODUCTO', 'CÓDIGO', 'PRECIO']],
-            body: tableRows,
-            theme: 'grid',
-            headStyles: { fillColor: [219, 207, 172], textColor: [26, 26, 26], fontStyle: 'bold' },
-            columnStyles: {
-                0: { cellWidth: 30, minCellHeight: 30 },
-                1: { cellWidth: 'auto' },
-                2: { cellWidth: 35 },
-                3: { cellWidth: 35, halign: 'right' }
-            },
-            styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
-            didDrawCell: (data) => {
-                if (data.section === 'body' && data.column.index === 0 && data.cell.raw.image) {
-                    const imgSize = 24;
-                    const x = data.cell.x + (data.cell.width - imgSize) / 2;
-                    const y = data.cell.y + (data.cell.height - imgSize) / 2;
-                    doc.addImage(data.cell.raw.image, 'JPEG', x, y, imgSize, imgSize);
-                }
-            },
-            // Hack to make the empty cell text invisible while image is drawn
-            didParseCell: (data) => {
-                if (data.column.index === 0 && data.cell.raw.image) {
-                    data.cell.text = '';
-                }
-            }
-        });
+        // Final footer cleanup/check (in case of only one page)
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let j = 1; j <= totalPages; j++) {
+            doc.setPage(j);
+            drawFooter(doc, j);
+        }
 
-        doc.save(`Lista_Precios_Sielu_${date.replace(/\//g, '-')}.pdf`);
+        doc.save(`Lista_Precios_Sielu_${fullDate.replace(/\s+/g, '_')}.pdf`);
 
     } catch (e) {
         console.error("Error generating PDF:", e);
