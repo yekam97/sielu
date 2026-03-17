@@ -261,7 +261,7 @@ async function generatePDF() {
             theme: 'grid',
             headStyles: { fillColor: [219, 207, 172], textColor: [26, 26, 26], fontStyle: 'bold' },
             columnStyles: {
-                0: { cellWidth: 25, minCellHeight: 25 },
+                0: { cellWidth: 30, minCellHeight: 30 },
                 1: { cellWidth: 'auto' },
                 2: { cellWidth: 35 },
                 3: { cellWidth: 35, halign: 'right' }
@@ -269,7 +269,7 @@ async function generatePDF() {
             styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
             didDrawCell: (data) => {
                 if (data.section === 'body' && data.column.index === 0 && data.cell.raw.image) {
-                    const imgSize = 20;
+                    const imgSize = 24;
                     const x = data.cell.x + (data.cell.width - imgSize) / 2;
                     const y = data.cell.y + (data.cell.height - imgSize) / 2;
                     doc.addImage(data.cell.raw.image, 'JPEG', x, y, imgSize, imgSize);
