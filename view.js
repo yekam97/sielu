@@ -119,15 +119,16 @@ function renderTable(filter = currentFilter) {
         `;
 
         // Toggle Logic with better robustness
-        catRow.onclick = (e) => {
+        catRow.addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             if (collapsedCategories.has(cat)) {
                 collapsedCategories.delete(cat);
             } else {
                 collapsedCategories.add(cat);
             }
             renderTable(currentFilter);
-        };
+        });
 
         tbody.appendChild(catRow);
 
