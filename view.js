@@ -5,6 +5,7 @@ import autoTable from "jspdf-autotable";
 
 let allProducts = [];
 let categoryOrder = [];
+let collapsedCategories = new Set(); // Track collapsed state
 
 // Configuración integrada en fetchProducts
 async function fetchConfig() {
@@ -100,63 +101,84 @@ function renderTable(filter = '') {
     }
 
     sortedCategories.forEach(cat => {
+        const isCollapsed = collapsedCategories.has(cat);
+
         // Category Header
         const catRow = document.createElement('tr');
-        catRow.className = 'category-header';
-        catRow.innerHTML = `<td colspan="5">${cat}</td>`;
+        catRow.className = `category-header ${isCollapsed ? 'collapsed' : ''}`;
+        catRow.innerHTML = `
+            <td colspan="5">
+                <div class="category-header-content">
+                    <span>${cat}</span>
+                    <span class="toggle-icon">${isCollapsed ? '⊕' : '⊖'}</span>
+                </div>
+            </td>
+        `;
+
+        // Toggle Logic
+        catRow.addEventListener('click', () => {
+            if (collapsedCategories.has(cat)) {
+                collapsedCategories.delete(cat);
+            } else {
+                collapsedCategories.add(cat);
+            }
+            renderTable(filter); // Re-render to show/hide
+        });
+
         tbody.appendChild(catRow);
 
-        grouped[cat].forEach(item => {
-            const tr = document.createElement('tr');
+        if (!isCollapsed) {
+            grouped[cat].forEach(item => {
+                const tr = document.createElement('tr');
 
-            // Imagen
-            const tdImg = document.createElement('td');
-            tdImg.setAttribute('data-label', 'Imagen');
-            const img = document.createElement('img');
-            img.src = item.img || '';
-            img.className = 'product-img';
-            img.onerror = () => { img.style.display = 'none'; };
-            tdImg.appendChild(img);
-            tr.appendChild(tdImg);
+                // Imagen
+                const tdImg = document.createElement('td');
+                tdImg.setAttribute('data-label', 'Imagen');
+                const img = document.createElement('img');
+                img.src = item.img || '';
+                img.className = 'product-img';
+                img.onerror = () => { img.style.display = 'none'; };
+                tdImg.appendChild(img);
+                tr.appendChild(tdImg);
 
-            // Nombre
-            const tdName = document.createElement('td');
-            tdName.setAttribute('data-label', 'Nombre');
-            tdName.textContent = item.nombre;
-            tr.appendChild(tdName);
+                // Nombre
+                const tdName = document.createElement('td');
+                tdName.setAttribute('data-label', 'Nombre');
+                tdName.textContent = item.nombre;
+                tr.appendChild(tdName);
 
-            // Código
-            const tdCode = document.createElement('td');
-            tdCode.setAttribute('data-label', 'Código');
-            tdCode.textContent = item.codigo;
-            tr.appendChild(tdCode);
+                // Código
+                const tdCode = document.createElement('td');
+                tdCode.setAttribute('data-label', 'Código');
+                tdCode.textContent = item.codigo;
+                tr.appendChild(tdCode);
 
-            // Precio
-            const tdPrice = document.createElement('td');
-            tdPrice.setAttribute('data-label', 'Precio');
-            tdPrice.className = 'price-cell';
-            const priceVal = parseFloat(item.precio);
-            tdPrice.textContent = isNaN(priceVal) ? item.precio : "$" + priceVal.toLocaleString('es-CO');
-            tr.appendChild(tdPrice);
+                // Precio
+                const tdPrice = document.createElement('td');
+                tdPrice.setAttribute('data-label', 'Precio');
+                tdPrice.className = 'price-cell';
+                const priceVal = parseFloat(item.precio);
+                tdPrice.textContent = isNaN(priceVal) ? item.precio : "$" + priceVal.toLocaleString('es-CO');
+                tr.appendChild(tdPrice);
 
-            // Ficha
-            const tdFicha = document.createElement('td');
-            tdFicha.setAttribute('data-label', 'Ficha');
-            if (item.ficha) {
-                const a = document.createElement('a');
-                a.href = item.ficha;
-                a.target = '_blank';
-                a.className = 'btn-ficha';
-                a.textContent = 'Ver Ficha';
-                tdFicha.appendChild(a);
-            } else {
-                tdFicha.textContent = '-';
-            }
-            tr.appendChild(tdFicha);
+                // Ficha
+                const tdFicha = document.createElement('td');
+                tdFicha.setAttribute('data-label', 'Ficha');
+                if (item.ficha) {
+                    const a = document.createElement('a');
+                    a.href = item.ficha;
+                    a.target = '_blank';
+                    a.className = 'btn-ficha';
+                    a.textContent = 'Ver Ficha';
+                    tdFicha.appendChild(a);
+                } else {
+                    tdFicha.textContent = '-';
+                }
+                tr.appendChild(tdFicha);
 
-            tbody.appendChild(tr);
+                tbody.appendChild(tr);
+            });
         });
-    });
 }
 
 // Search handler
