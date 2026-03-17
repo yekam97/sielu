@@ -51,8 +51,12 @@ function showEmptyState() {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">No se pudieron cargar los datos. Verifica la configuración de Firebase.</td></tr>`;
 }
 
-function renderTable(filter = '') {
+let currentFilter = '';
+
+function renderTable(filter = currentFilter) {
+    currentFilter = filter;
     const tbody = document.querySelector('#priceTable tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     let items = [...allProducts];
@@ -61,8 +65,8 @@ function renderTable(filter = '') {
     items = items.filter(item => item.estado !== 'No disponible');
 
     // Filter by search text
-    if (filter) {
-        const lowerFilter = filter.toLowerCase();
+    if (currentFilter) {
+        const lowerFilter = currentFilter.toLowerCase();
         items = items.filter(item =>
             item.nombre.toLowerCase().includes(lowerFilter) ||
             item.codigo.toLowerCase().includes(lowerFilter) ||
@@ -78,7 +82,7 @@ function renderTable(filter = '') {
         grouped[cat].push(item);
     });
 
-    // Sort products within categories: orden primary, name secondary
+    // Sort products within categories
     Object.keys(grouped).forEach(cat => {
         grouped[cat].sort((a, b) => {
             const ordA = Number(a.orden) || 0;
@@ -88,9 +92,7 @@ function renderTable(filter = '') {
         });
     });
 
-    // Use dynamic categoryOrder
     const sortedCategories = categoryOrder.filter(cat => grouped[cat]);
-    // Add any categories from grouped that might not be in the sorted list (fallback)
     Object.keys(grouped).forEach(cat => {
         if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
     });
@@ -106,24 +108,26 @@ function renderTable(filter = '') {
         // Category Header
         const catRow = document.createElement('tr');
         catRow.className = `category-header ${isCollapsed ? 'collapsed' : ''}`;
+        catRow.style.cursor = 'pointer';
         catRow.innerHTML = `
             <td colspan="5">
                 <div class="category-header-content">
-                    <span>${cat}</span>
+                    <span style="font-weight: bold;">${cat}</span>
                     <span class="toggle-icon">${isCollapsed ? '⊕' : '⊖'}</span>
                 </div>
             </td>
         `;
 
-        // Toggle Logic
-        catRow.addEventListener('click', () => {
+        // Toggle Logic with better robustness
+        catRow.onclick = (e) => {
+            e.preventDefault();
             if (collapsedCategories.has(cat)) {
                 collapsedCategories.delete(cat);
             } else {
                 collapsedCategories.add(cat);
             }
-            renderTable(filter); // Re-render to show/hide
-        });
+            renderTable(currentFilter);
+        };
 
         tbody.appendChild(catRow);
 
@@ -137,6 +141,7 @@ function renderTable(filter = '') {
                 const img = document.createElement('img');
                 img.src = item.img || '';
                 img.className = 'product-img';
+                img.loading = 'lazy';
                 img.onerror = () => { img.style.display = 'none'; };
                 tdImg.appendChild(img);
                 tr.appendChild(tdImg);
