@@ -169,15 +169,27 @@ function formatCurrency(number) {
     return new Intl.NumberFormat('es-CO').format(Math.round(number));
 }
 
-// Helper to convert image URL to Base64
-async function getBase64FromUrl(url) {
+// Helper to convert image URL to Base64 and get dimensions
+async function getImageDataFromUrl(url) {
     if (!url) return null;
     try {
         const response = await fetch(url);
         const blob = await response.blob();
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
+            reader.onloadend = () => {
+                const base64 = reader.result;
+                const img = new Image();
+                img.onload = () => {
+                    resolve({
+                        base64: base64,
+                        width: img.width,
+                        height: img.height
+                    });
+                };
+                img.onerror = () => resolve({ base64: base64, width: 0, height: 0 });
+                img.src = base64;
+            };
             reader.onerror = reject;
             reader.readAsDataURL(blob);
         });
@@ -197,7 +209,7 @@ async function generatePDF() {
         const doc = new jsPDF();
         const date = new Date().toLocaleDateString('es-CO', { month: 'long' });
         const year = new Date().getFullYear();
-        const fullDate = `Marzo ${year}`; // User specific request for March or dynamic? User image says "Marzo"
+        const fullDate = `Marzo ${year}`;
 
         // 1. Full-width Tan Header Block
         const pageWidth = doc.internal.pageSize.width;
@@ -264,9 +276,9 @@ async function generatePDF() {
 
             const tableRows = [];
             for (const item of grouped[cat]) {
-                const imgBase64 = await getBase64FromUrl(item.img);
+                const imgInfo = await getImageDataFromUrl(item.img);
                 tableRows.push([
-                    { content: '', image: imgBase64 },
+                    { content: '', imageInfo: imgInfo },
                     item.nombre,
                     item.codigo,
                     `$ ${formatCurrency(item.precio)}`
@@ -277,7 +289,8 @@ async function generatePDF() {
                 startY: currentY,
                 head: [['Imagen', 'Nombre', 'Código Facturación', 'Precio antes de IVA']],
                 body: tableRows,
-                theme: 'plain', // Use plain for the "no vertical line" look
+                theme: 'plain',
+                rowPageBreak: 'avoid',
                 headStyles: {
                     fillColor: [255, 253, 242],
                     textColor: [26, 26, 26],
@@ -293,11 +306,29 @@ async function generatePDF() {
                 },
                 styles: { fontSize: 9, cellPadding: 2, valign: 'middle', lineColor: [240, 240, 240], lineWidth: 0.1 },
                 didDrawCell: (data) => {
-                    if (data.section === 'body' && data.column.index === 0 && data.cell.raw.image) {
-                        const imgSize = 30; // 30 units is significantly larger (+50% from original 20)
-                        const x = data.cell.x + (data.cell.width - imgSize) / 2;
-                        const y = data.cell.y + (data.cell.height - imgSize) / 2;
-                        doc.addImage(data.cell.raw.image, 'JPEG', x, y, imgSize, imgSize);
+                    if (data.section === 'body' && data.column.index === 0 && data.cell.raw.imageInfo) {
+                        const info = data.cell.raw.imageInfo;
+                        const maxW = 30;
+                        const maxH = 30;
+
+                        let finalW = maxW;
+                        let finalH = maxH;
+
+                        if (info.width && info.height) {
+                            const ratio = info.width / info.height;
+                            if (ratio > 1) {
+                                // Landscape
+                                finalH = maxW / ratio;
+                            } else {
+                                // Portrait
+                                finalW = maxH * ratio;
+                            }
+                        }
+
+                        const x = data.cell.x + (data.cell.width - finalW) / 2;
+                        const y = data.cell.y + (data.cell.height - finalH) / 2;
+
+                        doc.addImage(info.base64, 'JPEG', x, y, finalW, finalH);
                     }
                 },
                 margin: { top: 30, bottom: 25 },
@@ -308,10 +339,9 @@ async function generatePDF() {
 
             currentY = doc.lastAutoTable.finalY + 20;
 
-            // New page if next category won't fit well or just to keep it clean like the demo
-            if (i < sortedCategories.length - 1 && currentY > 200) {
+            if (i < sortedCategories.length - 1 && currentY > 240) {
                 doc.addPage();
-                currentY = 20; // Lower on subsequent pages since there is no big header
+                currentY = 20;
             }
         }
 
