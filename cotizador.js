@@ -114,7 +114,9 @@ function addToQuote(product) {
     } else {
         quoteItems.push({
             ...product,
-            qty: 1
+            qty: 1,
+            manualPrice: null,
+            isLocked: false
         });
     }
     renderQuoteTable();
@@ -127,8 +129,32 @@ function removeFromQuote(id) {
 
 function updateQty(id, newQty) {
     const item = quoteItems.find(i => i.id === id);
-    if (item && newQty > 0) {
-        item.qty = parseInt(newQty);
+    if (item) {
+        const val = parseInt(newQty);
+        if (val > 0) {
+            item.qty = val;
+            renderQuoteTable();
+        }
+    }
+}
+
+function updatePrice(id, newPrice) {
+    const item = quoteItems.find(i => i.id === id);
+    if (item) {
+        const val = parseFloat(newPrice);
+        if (!isNaN(val)) {
+            item.manualPrice = val;
+            item.isLocked = true;
+            renderQuoteTable();
+        }
+    }
+}
+
+function resetPrice(id) {
+    const item = quoteItems.find(i => i.id === id);
+    if (item) {
+        item.isLocked = false;
+        item.manualPrice = null;
         renderQuoteTable();
     }
 }
@@ -138,9 +164,12 @@ function getMarkupPercentage() {
     return isNaN(val) ? 0 : val;
 }
 
-function calculateItemPrice(basePrice) {
+function calculateItemPrice(item) {
+    if (item.isLocked && item.manualPrice !== null) {
+        return item.manualPrice;
+    }
     const markup = getMarkupPercentage() / 100;
-    return basePrice + (basePrice * markup);
+    return item.precioBase + (item.precioBase * markup);
 }
 
 function renderQuoteTable() {
@@ -150,7 +179,7 @@ function renderQuoteTable() {
     let subtotal = 0;
 
     quoteItems.forEach(item => {
-        const quotedPrice = calculateItemPrice(item.precioBase);
+        const quotedPrice = calculateItemPrice(item);
         const totalItemPrice = quotedPrice * item.qty;
         subtotal += totalItemPrice;
 
@@ -162,7 +191,12 @@ function renderQuoteTable() {
                 <input type="number" class="qty-input" value="${item.qty}" min="1" 
                        onchange="window.updateQuoteQty('${item.id}', this.value)">
             </td>
-            <td>$${formatCurrency(quotedPrice)}</td>
+            <td style="display: flex; align-items: center; gap: 5px;">
+                <input type="number" class="price-input" value="${Math.round(quotedPrice)}" 
+                       style="width: 100px; padding: 4px; border: 1px solid ${item.isLocked ? '#DBCFAC' : '#ddd'}; border-radius: 4px; ${item.isLocked ? 'background: #FFFDF2;' : ''}"
+                       onchange="window.updateQuotePrice('${item.id}', this.value)">
+                ${item.isLocked ? `<button onclick="window.resetQuotePrice('${item.id}')" title="Re-vincular al margen global" style="border:none; background:none; cursor:pointer; font-size: 1.2rem;">🔗</button>` : ''}
+            </td>
             <td>$${formatCurrency(totalItemPrice)}</td>
             <td>
                 <button class="remove-btn" onclick="window.removeQuoteItem('${item.id}')">Eliminar</button>
@@ -184,6 +218,8 @@ document.getElementById('quoteMarkup').addEventListener('input', renderQuoteTabl
 
 // Global functions for inline HTML handlers
 window.updateQuoteQty = updateQty;
+window.updateQuotePrice = updatePrice;
+window.resetQuotePrice = resetPrice;
 window.removeQuoteItem = removeFromQuote;
 
 function formatCurrency(number) {
@@ -221,7 +257,7 @@ function generatePDF() {
 
     // Table
     const tableData = quoteItems.map(item => {
-        const quotedPrice = calculateItemPrice(item.precioBase);
+        const quotedPrice = calculateItemPrice(item);
         const total = quotedPrice * item.qty;
         return [
             item.codigo,
@@ -248,7 +284,7 @@ function generatePDF() {
 
     // Totals
     let subtotal = 0;
-    quoteItems.forEach(item => subtotal += calculateItemPrice(item.precioBase) * item.qty);
+    quoteItems.forEach(item => subtotal += calculateItemPrice(item) * item.qty);
     const iva = subtotal * IVA_RATE;
     const total = subtotal + iva;
 

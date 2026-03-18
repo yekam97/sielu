@@ -163,8 +163,12 @@ function renderTable(filter = currentFilter) {
                 const tdPrice = document.createElement('td');
                 tdPrice.setAttribute('data-label', 'Precio');
                 tdPrice.className = 'price-cell';
+
+                const adjustment = getGlobalAdjustment() / 100;
                 const priceVal = parseFloat(item.precio);
-                tdPrice.textContent = isNaN(priceVal) ? item.precio : "$" + priceVal.toLocaleString('es-CO');
+                const adjustedPrice = priceVal * (1 + adjustment);
+
+                tdPrice.textContent = isNaN(priceVal) ? item.precio : "$" + Math.round(adjustedPrice).toLocaleString('es-CO');
                 tr.appendChild(tdPrice);
 
                 // Ficha
@@ -187,9 +191,20 @@ function renderTable(filter = currentFilter) {
     });
 }
 
+// Get global adjustment value
+function getGlobalAdjustment() {
+    const el = document.getElementById('globalAdjustment');
+    return el ? parseFloat(el.value) || 0 : 0;
+}
+
 // Search handler
 document.getElementById('searchInput').addEventListener('input', e => {
     renderTable(e.target.value);
+});
+
+// Adjustment handler
+document.getElementById('globalAdjustment').addEventListener('input', () => {
+    renderTable();
 });
 
 // PDF Export Logic
@@ -303,13 +318,16 @@ async function generatePDF() {
             currentY += 10;
 
             const tableRows = [];
+            const adjustment = getGlobalAdjustment() / 100;
+
             for (const item of grouped[cat]) {
                 const imgInfo = await getImageDataFromUrl(item.img);
+                const adjustedPrice = item.precio * (1 + adjustment);
                 tableRows.push([
                     { content: '', imageInfo: imgInfo },
                     item.nombre,
                     item.codigo,
-                    `$ ${formatCurrency(item.precio)}`
+                    `$ ${formatCurrency(adjustedPrice)}`
                 ]);
             }
 
