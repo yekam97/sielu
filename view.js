@@ -257,18 +257,18 @@ async function generatePDF() {
         // 1. Full-width Tan Header Block
         const pageWidth = doc.internal.pageSize.width;
         doc.setFillColor(219, 207, 172); // Sielu Tan
-        doc.rect(0, 0, pageWidth, 60, 'F');
+        doc.rect(0, 0, pageWidth, 75, 'F'); // Increased height
 
         // Header Text
-        doc.setFont("playfair", "normal");
-        doc.setFontSize(30);
-        doc.setTextColor(26, 26, 26);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(36);
+        doc.setTextColor(0, 0, 0); // Black text
         doc.text(`Lista de Precios ${fullDate}`, pageWidth / 2, 25, { align: 'center' });
 
         const logoInfo = await getImageDataFromUrl('/logo.png');
         if (logoInfo && logoInfo.base64 && logoInfo.width > 0) {
-            const maxH = 22;
-            const maxW = 60;
+            const maxH = 40;
+            const maxW = 100;
             let finalW = maxW;
             let finalH = maxW * (logoInfo.height / logoInfo.width);
 
@@ -277,12 +277,12 @@ async function generatePDF() {
                 finalW = maxH * (logoInfo.width / logoInfo.height);
             }
             const x = (pageWidth - finalW) / 2;
-            const y = 32 + (maxH - finalH) / 2;
+            const y = 30 + (maxH - finalH) / 2; // Position slightly lower
             doc.addImage(logoInfo.base64, 'PNG', x, y, finalW, finalH);
         } else {
             doc.setFontSize(50);
-            doc.setFont("playfair", "bold");
-            doc.text("Sielu", pageWidth / 2, 50, { align: 'center' });
+            doc.setFont("helvetica", "bold");
+            doc.text("Sielu", pageWidth / 2, 55, { align: 'center' });
         }
 
         // Footer Drawing Function
@@ -321,17 +321,23 @@ async function generatePDF() {
             if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
         });
 
-        let currentY = 75;
+        let currentY = 90; // Start lower due to larger header
 
         for (let i = 0; i < sortedCategories.length; i++) {
             const cat = sortedCategories[i];
 
             // Category title before table
-            doc.setFontSize(22);
+            doc.setFontSize(26);
             doc.setFont("helvetica", "normal");
-            doc.setTextColor(26, 26, 26);
+            doc.setTextColor(0, 0, 0);
             doc.text(cat, pageWidth / 2, currentY, { align: 'center' });
-            currentY += 10;
+            currentY += 12;
+
+            // Smaller bold sub-category title
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.text(cat, pageWidth / 2, currentY, { align: 'center' });
+            currentY += 8;
 
             const tableRows = [];
             const adjustment = getGlobalAdjustment() / 100;
@@ -341,9 +347,9 @@ async function generatePDF() {
                 const adjustedPrice = item.precio * (1 + adjustment);
                 tableRows.push([
                     { content: '', imageInfo: imgInfo },
-                    item.nombre,
+                    (item.nombre || "").toUpperCase(),
                     item.codigo,
-                    `$ ${formatCurrency(adjustedPrice)}`
+                    formatCurrency(adjustedPrice) // No '$' here, handled in hook
                 ]);
             }
 
@@ -355,18 +361,18 @@ async function generatePDF() {
                 rowPageBreak: 'avoid',
                 headStyles: {
                     fillColor: [255, 253, 242],
-                    textColor: [26, 26, 26],
+                    textColor: [0, 0, 0],
                     fontStyle: 'bold',
                     halign: 'center',
                     fontSize: 10
                 },
                 columnStyles: {
-                    0: { cellWidth: 35, minCellHeight: 35 },
-                    1: { cellWidth: 'auto', valign: 'middle' },
-                    2: { cellWidth: 35, halign: 'center', valign: 'middle' },
-                    3: { cellWidth: 40, halign: 'right', valign: 'middle' }
+                    0: { cellWidth: 40, minCellHeight: 40, halign: 'center', valign: 'middle' },
+                    1: { cellWidth: 'auto', halign: 'center', valign: 'middle' },
+                    2: { cellWidth: 40, halign: 'center', valign: 'middle' },
+                    3: { cellWidth: 45, halign: 'right', valign: 'middle' }
                 },
-                styles: { fontSize: 9, cellPadding: 2, valign: 'middle', lineColor: [240, 240, 240], lineWidth: 0.1 },
+                styles: { fontSize: 9, cellPadding: 3, valign: 'middle', lineColor: [255, 255, 255], lineWidth: 0, font: 'helvetica' },
                 didDrawCell: (data) => {
                     if (data.section === 'body' && data.column.index === 0 && data.cell.raw.imageInfo) {
                         const info = data.cell.raw.imageInfo;
@@ -391,6 +397,16 @@ async function generatePDF() {
                         const y = data.cell.y + (data.cell.height - finalH) / 2;
 
                         doc.addImage(info.base64, 'JPEG', x, y, finalW, finalH);
+                    }
+
+                    // Add explicitly separated $ sign for prices
+                    if (data.section === 'body' && data.column.index === 3) {
+                        doc.setFont("helvetica", "normal");
+                        doc.setFontSize(9);
+                        doc.setTextColor(0, 0, 0);
+                        const paddingX = data.cell.padding('left');
+                        const textY = data.cell.y + (data.cell.height / 2) + 3; // Center roughly
+                        doc.text('$', data.cell.x + paddingX, textY);
                     }
                 },
                 margin: { top: 30, bottom: 25 },
