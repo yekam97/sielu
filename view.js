@@ -265,7 +265,8 @@ async function generatePDF() {
         doc.setTextColor(0, 0, 0); // Black text
         doc.text(`Lista de Precios ${fullDate}`, pageWidth / 2, 25, { align: 'center' });
 
-        const logoInfo = await getImageDataFromUrl('/logo.png');
+        // Use relative path for logo to avoid root resolution issues
+        const logoInfo = await getImageDataFromUrl('logo.png');
         if (logoInfo && logoInfo.base64 && logoInfo.width > 0) {
             const maxH = 40;
             const maxW = 100;
@@ -326,16 +327,10 @@ async function generatePDF() {
         for (let i = 0; i < sortedCategories.length; i++) {
             const cat = sortedCategories[i];
 
-            // Category title before table
+            // Category title before table (Large Text)
             doc.setFontSize(26);
             doc.setFont("helvetica", "normal");
             doc.setTextColor(0, 0, 0);
-            doc.text(cat, pageWidth / 2, currentY, { align: 'center' });
-            currentY += 12;
-
-            // Smaller bold sub-category title
-            doc.setFontSize(11);
-            doc.setFont("helvetica", "bold");
             doc.text(cat, pageWidth / 2, currentY, { align: 'center' });
             currentY += 8;
 
@@ -355,12 +350,21 @@ async function generatePDF() {
 
             autoTable(doc, {
                 startY: currentY,
-                head: [['Imagen', 'Nombre', 'Código Facturación', 'Precio antes de IVA']],
+                head: [
+                    // Grouped header for Category with #FFFCF2 background
+                    [{
+                        content: cat,
+                        colSpan: 4,
+                        styles: { halign: 'center', fillColor: [255, 252, 242], textColor: [0, 0, 0], fontSize: 12, fontStyle: 'bold' }
+                    }],
+                    // Column labels
+                    ['Imagen', 'Nombre', 'Código Facturación', 'Precio antes de IVA']
+                ],
                 body: tableRows,
                 theme: 'plain',
                 rowPageBreak: 'avoid',
                 headStyles: {
-                    fillColor: [255, 253, 242],
+                    fillColor: [255, 252, 242], // #FFFCF2
                     textColor: [0, 0, 0],
                     fontStyle: 'bold',
                     halign: 'center',
@@ -372,7 +376,7 @@ async function generatePDF() {
                     2: { cellWidth: 40, halign: 'center', valign: 'middle' },
                     3: { cellWidth: 45, halign: 'right', valign: 'middle' }
                 },
-                styles: { fontSize: 9, cellPadding: 3, valign: 'middle', lineColor: [255, 255, 255], lineWidth: 0, font: 'helvetica' },
+                styles: { fontSize: 9, cellPadding: 3, valign: 'middle', lineColor: [255, 255, 255], lineWidth: 1.5, font: 'helvetica' },
                 didDrawCell: (data) => {
                     if (data.section === 'body' && data.column.index === 0 && data.cell.raw.imageInfo) {
                         const info = data.cell.raw.imageInfo;

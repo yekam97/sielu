@@ -273,7 +273,7 @@ async function generatePDF() {
         const date = new Date().toLocaleDateString('es-CO');
 
         // Header Logo
-        const logoInfo = await getImageDataFromUrl('/logo.png');
+        const logoInfo = await getImageDataFromUrl('logo.png'); // using relative path
         if (logoInfo && logoInfo.base64 && logoInfo.width > 0) {
             const maxH = 15;
             const maxW = 40;
