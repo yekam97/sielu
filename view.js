@@ -364,17 +364,17 @@ async function generatePDF() {
                     fontSize: 10
                 },
                 columnStyles: {
-                    0: { cellWidth: 40, minCellHeight: 40, halign: 'center', valign: 'middle' },
+                    0: { cellWidth: 40, minCellHeight: 25, halign: 'center', valign: 'middle' },
                     1: { cellWidth: 'auto', halign: 'center', valign: 'middle' },
                     2: { cellWidth: 40, halign: 'center', valign: 'middle' },
                     3: { cellWidth: 45, halign: 'right', valign: 'middle' }
                 },
-                styles: { fontSize: 9, cellPadding: 3, valign: 'middle', lineColor: [255, 255, 255], lineWidth: 1.5, font: 'helvetica' },
+                styles: { fontSize: 9, cellPadding: 1.5, valign: 'middle', lineColor: [255, 255, 255], lineWidth: 1.5, font: 'helvetica' },
                 didDrawCell: (data) => {
                     if (data.section === 'body' && data.column.index === 0 && data.cell.raw.imageInfo) {
                         const info = data.cell.raw.imageInfo;
-                        const maxW = 30;
-                        const maxH = 30;
+                        const maxW = 20;
+                        const maxH = 20;
 
                         let finalW = maxW;
                         let finalH = maxH;
