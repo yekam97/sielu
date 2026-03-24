@@ -229,82 +229,135 @@ function formatCurrency(number) {
 // --- PDF EXPORT ---
 document.getElementById('btnExportPDF').addEventListener('click', generatePDF);
 
-function generatePDF() {
+// Helper to convert image URL to Base64
+async function getImageDataFromUrl(url) {
+    if (!url) return null;
+    try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = reader.result;
+                const img = new Image();
+                img.onload = () => {
+                    resolve({ base64: base64, width: img.width, height: img.height });
+                };
+                img.onerror = () => resolve({ base64: base64, width: 0, height: 0 });
+                img.src = base64;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.warn("Could not load image for PDF:", url);
+        return null;
+    }
+}
+
+async function generatePDF() {
     if (quoteItems.length === 0) {
         alert("Agrega al menos un producto a la cotización.");
         return;
     }
 
-    const doc = new jsPDF();
-    const de = document.getElementById('quoteFrom').value || 'Asesor Sielu';
-    const para = document.getElementById('quoteTo').value || 'Cliente';
-    const date = new Date().toLocaleDateString('es-CO');
+    const btn = document.getElementById('btnExportPDF');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = 'Generando PDF...';
+    btn.disabled = true;
 
-    // Header
-    doc.setFontSize(22);
-    doc.setTextColor(219, 207, 172); // Sielu Accent
-    doc.text("Sielu", 14, 20);
+    try {
+        const doc = new jsPDF();
+        const de = document.getElementById('quoteFrom').value || 'Asesor Sielu';
+        const para = document.getElementById('quoteTo').value || 'Cliente';
+        const date = new Date().toLocaleDateString('es-CO');
 
-    doc.setFontSize(16);
-    doc.setTextColor(26, 26, 26);
-    doc.text("COTIZACIÓN COMERCIAL", 14, 30);
-
-    doc.setFontSize(11);
-    doc.setTextColor(85, 85, 85);
-    doc.text(`Fecha: ${date}`, 14, 40);
-    doc.text(`De: ${de}`, 14, 46);
-    doc.text(`Para: ${para}`, 14, 52);
-
-    // Table
-    const tableData = quoteItems.map(item => {
-        const quotedPrice = calculateItemPrice(item);
-        const total = quotedPrice * item.qty;
-        return [
-            item.codigo,
-            item.nombre,
-            item.qty.toString(),
-            `$${formatCurrency(quotedPrice)}`,
-            `$${formatCurrency(total)}`
-        ];
-    });
-
-    let finalY = 60;
-
-    autoTable(doc, {
-        startY: 60,
-        head: [['CÓDIGO', 'PRODUCTO', 'CANT.', 'V. UNITARIO', 'V. TOTAL']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [219, 207, 172], textColor: [26, 26, 26] },
-        styles: { fontSize: 9, cellPadding: 3 },
-        didDrawPage: function (data) {
-            finalY = data.cursor.y;
+        // Header Logo
+        const logoInfo = await getImageDataFromUrl('/logo.png');
+        if (logoInfo && logoInfo.base64 && logoInfo.width > 0) {
+            const maxH = 15;
+            const maxW = 40;
+            let finalW = maxW;
+            let finalH = maxW * (logoInfo.height / logoInfo.width);
+            if (finalH > maxH) {
+                finalH = maxH;
+                finalW = maxH * (logoInfo.width / logoInfo.height);
+            }
+            doc.addImage(logoInfo.base64, 'PNG', 14, 10, finalW, finalH);
+        } else {
+            doc.setFontSize(22);
+            doc.setTextColor(219, 207, 172); // Sielu Accent
+            doc.text("Sielu", 14, 20);
         }
-    });
 
-    // Totals
-    let subtotal = 0;
-    quoteItems.forEach(item => subtotal += calculateItemPrice(item) * item.qty);
-    const iva = subtotal * IVA_RATE;
-    const total = subtotal + iva;
+        doc.setFontSize(16);
+        doc.setTextColor(26, 26, 26);
+        doc.text("COTIZACIÓN COMERCIAL", 14, 30);
 
-    // Position totals on the right side
-    const pageWidth = doc.internal.pageSize.width;
-    const rightMargin = pageWidth - 14;
+        doc.setFontSize(11);
+        doc.setTextColor(85, 85, 85);
+        doc.text(`Fecha: ${date}`, 14, 40);
+        doc.text(`De: ${de}`, 14, 46);
+        doc.text(`Para: ${para}`, 14, 52);
 
-    doc.setFontSize(10);
-    doc.text(`Subtotal: $${formatCurrency(subtotal)}`, rightMargin, finalY + 10, { align: 'right' });
-    doc.text(`IVA (19%): $${formatCurrency(iva)}`, rightMargin, finalY + 16, { align: 'right' });
+        // Table
+        const tableData = quoteItems.map(item => {
+            const quotedPrice = calculateItemPrice(item);
+            const total = quotedPrice * item.qty;
+            return [
+                item.codigo,
+                item.nombre,
+                item.qty.toString(),
+                `$${formatCurrency(quotedPrice)}`,
+                `$${formatCurrency(total)}`
+            ];
+        });
 
-    doc.setFontSize(13);
-    doc.setFont(undefined, 'bold');
-    doc.text(`TOTAL: $${formatCurrency(total)}`, rightMargin, finalY + 24, { align: 'right' });
+        let finalY = 60;
 
-    // Footer
-    doc.setFontSize(9);
-    doc.setFont(undefined, 'normal');
-    doc.setTextColor(150, 150, 150);
-    doc.text("Esta cotización está sujeta a disponibilidad de inventario.", pageWidth / 2, 280, { align: 'center' });
+        autoTable(doc, {
+            startY: 60,
+            head: [['CÓDIGO', 'PRODUCTO', 'CANT.', 'V. UNITARIO', 'V. TOTAL']],
+            body: tableData,
+            theme: 'striped',
+            headStyles: { fillColor: [219, 207, 172], textColor: [26, 26, 26] },
+            styles: { fontSize: 9, cellPadding: 3 },
+            didDrawPage: function (data) {
+                finalY = data.cursor.y;
+            }
+        });
 
-    doc.save(`Cotización_Sielu_${para.replace(/\s+/g, '_')}_${date}.pdf`);
+        // Totals
+        let subtotal = 0;
+        quoteItems.forEach(item => subtotal += calculateItemPrice(item) * item.qty);
+        const iva = subtotal * IVA_RATE;
+        const total = subtotal + iva;
+
+        // Position totals on the right side
+        const pageWidth = doc.internal.pageSize.width;
+        const rightMargin = pageWidth - 14;
+
+        doc.setFontSize(10);
+        doc.text(`Subtotal: $${formatCurrency(subtotal)}`, rightMargin, finalY + 10, { align: 'right' });
+        doc.text(`IVA (19%): $${formatCurrency(iva)}`, rightMargin, finalY + 16, { align: 'right' });
+
+        doc.setFontSize(13);
+        doc.setFont(undefined, 'bold');
+        doc.text(`TOTAL: $${formatCurrency(total)}`, rightMargin, finalY + 24, { align: 'right' });
+
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(150, 150, 150);
+        doc.text("Esta cotización está sujeta a disponibilidad de inventario.", pageWidth / 2, 280, { align: 'center' });
+
+        doc.save(`Cotización_Sielu_${para.replace(/\s+/g, '_')}_${date}.pdf`);
+
+    } catch (e) {
+        console.error("Error generating PDF:", e);
+        alert("Ocurrió un error al generar la cotización.");
+    } finally {
+        const btn = document.getElementById('btnExportPDF');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }

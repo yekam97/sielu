@@ -265,9 +265,25 @@ async function generatePDF() {
         doc.setTextColor(26, 26, 26);
         doc.text(`Lista de Precios ${fullDate}`, pageWidth / 2, 25, { align: 'center' });
 
-        doc.setFontSize(60);
-        doc.setFont("playfair", "bold");
-        doc.text("sielu", pageWidth / 2, 50, { align: 'center' });
+        const logoInfo = await getImageDataFromUrl('/logo.png');
+        if (logoInfo && logoInfo.base64 && logoInfo.width > 0) {
+            const maxH = 22;
+            const maxW = 60;
+            let finalW = maxW;
+            let finalH = maxW * (logoInfo.height / logoInfo.width);
+
+            if (finalH > maxH) {
+                finalH = maxH;
+                finalW = maxH * (logoInfo.width / logoInfo.height);
+            }
+            const x = (pageWidth - finalW) / 2;
+            const y = 32 + (maxH - finalH) / 2;
+            doc.addImage(logoInfo.base64, 'PNG', x, y, finalW, finalH);
+        } else {
+            doc.setFontSize(50);
+            doc.setFont("playfair", "bold");
+            doc.text("Sielu", pageWidth / 2, 50, { align: 'center' });
+        }
 
         // Footer Drawing Function
         const drawFooter = (doc, pageNumber) => {

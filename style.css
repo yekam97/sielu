@@ -50,16 +50,10 @@ header {
 }
 
 .logo-main {
-    font-family: var(--font-serif);
-    font-size: 4rem;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 1rem;
-    letter-spacing: -1px;
-}
-
-.logo-main span {
-    font-style: italic;
+    max-width: 250px;
+    height: auto;
+    margin: 0 auto 1rem auto;
+    display: block;
 }
 
 /* --- SEARCH & ACTIONS --- */
