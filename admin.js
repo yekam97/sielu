@@ -369,15 +369,17 @@ form.addEventListener('submit', async e => {
         Temp: document.getElementById('temp').value.trim(),
         Garantia: document.getElementById('garantia').value.trim(),
         Dibujo: document.getElementById('dibujo').value.trim(),
-        Orden: 0, // Default for new products
         fechaUpdate: new Date()
     };
 
     submitBtn.disabled = true;
     try {
         if (id) {
+            // Solo actualizamos los campos del formulario, respetando el Orden actual en la base de datos
             await updateDoc(doc(db, "productos_sielu", id), data);
         } else {
+            data.Orden = 0; // Orden por defecto solo para productos nuevos
+
             data.Estado = 'Disponible';
             await addDoc(collection(db, "productos_sielu"), data);
         }
