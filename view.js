@@ -327,13 +327,6 @@ async function generatePDF() {
         for (let i = 0; i < sortedCategories.length; i++) {
             const cat = sortedCategories[i];
 
-            // Category title before table (Large Text)
-            doc.setFontSize(26);
-            doc.setFont("helvetica", "normal");
-            doc.setTextColor(0, 0, 0);
-            doc.text(cat, pageWidth / 2, currentY, { align: 'center' });
-            currentY += 8;
-
             const tableRows = [];
             const adjustment = getGlobalAdjustment() / 100;
 
