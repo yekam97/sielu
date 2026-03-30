@@ -38,6 +38,12 @@ async function fetchProducts() {
             });
         });
 
+        // Auto-collapse categories by default on mobile (only on initial load)
+        if (window.innerWidth <= 768 && collapsedCategories.size === 0) {
+            const uniqueCats = new Set(allProducts.map(p => p.cat));
+            uniqueCats.forEach(cat => collapsedCategories.add(cat));
+        }
+
         renderTable();
     } catch (error) {
         console.error("Error fetching products: ", error);
