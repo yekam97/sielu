@@ -350,6 +350,30 @@ async function generatePDF() {
         doc.setTextColor(150, 150, 150);
         doc.text("Esta cotización está sujeta a disponibilidad de inventario.", pageWidth / 2, 280, { align: 'center' });
 
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let j = 1; j <= totalPages; j++) {
+            doc.setPage(j);
+            const pageHeight = doc.internal.pageSize.height;
+            doc.setFontSize(10);
+            doc.setTextColor(85, 85, 85);
+            doc.text(`Página ${j}`, 14, pageHeight - 10);
+            doc.text("+57 314 2188971", pageWidth - 14, pageHeight - 10, { align: 'right' });
+
+            if (j > 1 && logoInfo && logoInfo.base64 && logoInfo.width > 0) {
+                const topLogoMaxW = 35;
+                const topLogoMaxH = 15;
+                let topW = topLogoMaxW;
+                let topH = topLogoMaxW * (logoInfo.height / logoInfo.width);
+                if (topH > topLogoMaxH) {
+                    topH = topLogoMaxH;
+                    topW = topLogoMaxH * (logoInfo.width / logoInfo.height);
+                }
+                const topX = pageWidth - 14 - topW;
+                const topY = 10;
+                doc.addImage(logoInfo.base64, 'PNG', topX, topY, topW, topH);
+            }
+        }
+
         doc.save(`Cotización_Sielu_${para.replace(/\s+/g, '_')}_${date}.pdf`);
 
     } catch (e) {

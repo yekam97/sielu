@@ -299,9 +299,25 @@ async function generatePDF() {
             doc.setTextColor(85, 85, 85);
             doc.setFont("helvetica", "normal");
 
-            doc.text("Sielu", 14, pageHeight - 10);
-            doc.text(`Página ${pageNumber}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-            doc.text("+57 3224082010", pageWidth - 14, pageHeight - 10, { align: 'right' });
+            // Page number on the bottom left
+            doc.text(`Página ${pageNumber}`, 14, pageHeight - 10);
+            // Phone number on the bottom right
+            doc.text("+57 314 2188971", pageWidth - 14, pageHeight - 10, { align: 'right' });
+
+            // Sielu Logo on Top Right for page 2 onwards
+            if (pageNumber > 1 && logoInfo && logoInfo.base64 && logoInfo.width > 0) {
+                const topLogoMaxW = 35;
+                const topLogoMaxH = 15;
+                let topW = topLogoMaxW;
+                let topH = topLogoMaxW * (logoInfo.height / logoInfo.width);
+                if (topH > topLogoMaxH) {
+                    topH = topLogoMaxH;
+                    topW = topLogoMaxH * (logoInfo.width / logoInfo.height);
+                }
+                const topX = pageWidth - 14 - topW;
+                const topY = 10;
+                doc.addImage(logoInfo.base64, 'PNG', topX, topY, topW, topH);
+            }
         };
 
         // Prepare Data
@@ -412,10 +428,7 @@ async function generatePDF() {
                         doc.text('$', data.cell.x + paddingX, textY);
                     }
                 },
-                margin: { top: 30, bottom: 25 },
-                didDrawPage: (data) => {
-                    drawFooter(doc, doc.internal.getNumberOfPages());
-                }
+                margin: { top: 30, bottom: 25 }
             });
 
             currentY = doc.lastAutoTable.finalY + 20;
