@@ -314,8 +314,8 @@ async function generatePDF() {
                     topH = topLogoMaxH;
                     topW = topLogoMaxH * (logoInfo.width / logoInfo.height);
                 }
-                const topX = pageWidth - 14 - topW;
-                const topY = 10;
+                const topX = pageWidth - 5 - topW;
+                const topY = 5;
                 doc.addImage(logoInfo.base64, 'PNG', topX, topY, topW, topH);
             }
         };
