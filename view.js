@@ -439,6 +439,33 @@ async function generatePDF() {
             }
         }
 
+        // CONTACTO Section at the end
+        if (currentY > 230) {
+            doc.addPage();
+            currentY = 20;
+        } else {
+            currentY += 10;
+        }
+
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(219, 207, 172); // Sielu Accent
+        doc.text("CONTACTO", pageWidth / 2, currentY, { align: 'center' });
+        currentY += 12;
+
+        doc.setFontSize(11);
+        const col1 = pageWidth / 3;
+        const col2 = (pageWidth / 3) * 2;
+
+        doc.text("WhatsApp", col1, currentY, { align: 'center' });
+        doc.text("Instagram", col2, currentY, { align: 'center' });
+
+        currentY += 6;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        doc.text("+57 314 2188971", col1, currentY, { align: 'center' });
+        doc.text("@sielu.design", col2, currentY, { align: 'center' });
+
         // Final footer cleanup/check (in case of only one page)
         const totalPages = doc.internal.getNumberOfPages();
         for (let j = 1; j <= totalPages; j++) {
