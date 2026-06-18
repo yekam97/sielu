@@ -173,8 +173,24 @@ td {
     transition: var(--transition-fast);
 }
 
-.category-btn:hover {
-    filter: brightness(0.9);
+.category-download-btn {
+    background-color: var(--sielu-accent);
+    color: var(--sielu-text-dark);
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.category-download-btn:hover {
+    filter: brightness(0.95);
+    transform: translateY(-1px);
 }
 
 .toggle-icon {

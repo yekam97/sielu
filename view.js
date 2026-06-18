@@ -118,16 +118,26 @@ function renderTable(filter = currentFilter) {
         catRow.innerHTML = `
             <td colspan="5">
                 <div class="category-header-content">
-                    <span style="font-weight: bold;">${cat}</span>
-                    <span class="toggle-icon">${isCollapsed ? '⊕' : '⊖'}</span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="toggle-icon">${isCollapsed ? '⊕' : '⊖'}</span>
+                        <span style="font-weight: bold;">${cat}</span>
+                    </div>
+                    <button class="category-btn category-download-btn" title="Descargar esta categoría">
+                        📥 Descargar PDF
+                    </button>
                 </div>
             </td>
         `;
 
+        // Category Download Logic
+        const downloadBtn = catRow.querySelector('.category-download-btn');
+        downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevents collapse
+            generatePDF(true, cat);
+        });
+
         // Toggle Logic with better robustness
         catRow.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
             if (collapsedCategories.has(cat)) {
                 collapsedCategories.delete(cat);
             } else {
@@ -248,48 +258,50 @@ async function getImageDataFromUrl(url) {
     }
 }
 
-async function generatePDF() {
-    const btn = document.getElementById('btnDownload');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = 'Generando PDF...';
-    btn.disabled = true;
+async function generatePDF(includePrices = true, categoryFilter = null) {
+    const mainBtn = document.getElementById('btnDownload');
+    const noPriceBtn = document.getElementById('btnDownloadNoPrices');
+
+    const originalText = mainBtn.innerHTML;
+
+    // UI Feedback
+    mainBtn.disabled = true;
+    if (noPriceBtn) noPriceBtn.disabled = true;
+    if (categoryFilter) {
+        // Find category button if called from there
+        console.log("Downloading category:", categoryFilter);
+    }
 
     try {
         const doc = new jsPDF();
-        const date = new Date().toLocaleDateString('es-CO', { month: 'long' });
         const year = new Date().getFullYear();
-        const fullDate = `Marzo ${year}`;
+        const fullDate = `Junio ${year}`;
 
         // 1. Full-width Tan Header Block
         const pageWidth = doc.internal.pageSize.width;
         doc.setFillColor(219, 207, 172); // Sielu Tan
-        doc.rect(0, 0, pageWidth, 75, 'F'); // Increased height
+        doc.rect(0, 0, pageWidth, 75, 'F');
 
         // Header Text
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(36);
-        doc.setTextColor(0, 0, 0); // Black text
-        doc.text(`Lista de Precios ${fullDate}`, pageWidth / 2, 25, { align: 'center' });
+        doc.setFontSize(30);
+        doc.setTextColor(0, 0, 0);
+        const titleText = categoryFilter ? `${categoryFilter}` : `Lista de Precios ${fullDate}`;
+        doc.text(titleText, pageWidth / 2, 25, { align: 'center' });
 
-        // Use relative path for logo to avoid root resolution issues
         const logoInfo = await getImageDataFromUrl('logo.png');
         if (logoInfo && logoInfo.base64 && logoInfo.width > 0) {
             const maxH = 40;
             const maxW = 100;
             let finalW = maxW;
             let finalH = maxW * (logoInfo.height / logoInfo.width);
-
             if (finalH > maxH) {
                 finalH = maxH;
                 finalW = maxH * (logoInfo.width / logoInfo.height);
             }
             const x = (pageWidth - finalW) / 2;
-            const y = 30 + (maxH - finalH) / 2; // Position slightly lower
+            const y = 30 + (maxH - finalH) / 2;
             doc.addImage(logoInfo.base64, 'PNG', x, y, finalW, finalH);
-        } else {
-            doc.setFontSize(50);
-            doc.setFont("helvetica", "bold");
-            doc.text("Sielu", pageWidth / 2, 55, { align: 'center' });
         }
 
         // Footer Drawing Function
@@ -297,31 +309,21 @@ async function generatePDF() {
             const pageHeight = doc.internal.pageSize.height;
             doc.setFontSize(10);
             doc.setTextColor(85, 85, 85);
-            doc.setFont("helvetica", "normal");
-
-            // Page number on the bottom left
             doc.text(`Página ${pageNumber}`, 14, pageHeight - 10);
-            // Phone number on the bottom right
             doc.text("+57 314 2188971", pageWidth - 14, pageHeight - 10, { align: 'right' });
 
-            // Sielu Logo on Top Right for page 2 onwards
-            if (pageNumber > 1 && logoInfo && logoInfo.base64 && logoInfo.width > 0) {
-                const topLogoMaxW = 35;
-                const topLogoMaxH = 15;
-                let topW = topLogoMaxW;
-                let topH = topLogoMaxW * (logoInfo.height / logoInfo.width);
-                if (topH > topLogoMaxH) {
-                    topH = topLogoMaxH;
-                    topW = topLogoMaxH * (logoInfo.width / logoInfo.height);
-                }
-                const topX = pageWidth - 5 - topW;
-                const topY = 5;
-                doc.addImage(logoInfo.base64, 'PNG', topX, topY, topW, topH);
+            if (pageNumber > 1 && logoInfo && logoInfo.base64) {
+                const topW = 35;
+                const topH = topW * (logoInfo.height / logoInfo.width);
+                doc.addImage(logoInfo.base64, 'PNG', pageWidth - 5 - topW, 5, topW, topH);
             }
         };
 
         // Prepare Data
-        const itemsToExport = [...allProducts].filter(item => item.estado !== 'No disponible');
+        let itemsToExport = [...allProducts].filter(item => item.estado !== 'No disponible');
+        if (categoryFilter) {
+            itemsToExport = itemsToExport.filter(item => item.cat === categoryFilter);
+        }
 
         const grouped = {};
         itemsToExport.forEach(item => {
@@ -331,160 +333,126 @@ async function generatePDF() {
         });
 
         Object.keys(grouped).forEach(cat => {
-            grouped[cat].sort((a, b) => {
-                const ordA = Number(a.orden) || 0;
-                const ordB = Number(b.orden) || 0;
-                if (ordA !== ordB) return ordA - ordB;
-                return (a.nombre || "").localeCompare(b.nombre || "");
+            grouped[cat].sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
+        });
+
+        const sortedCategories = categoryFilter ? [categoryFilter] : categoryOrder.filter(cat => grouped[cat]);
+        if (!categoryFilter) {
+            Object.keys(grouped).forEach(cat => {
+                if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
             });
-        });
+        }
 
-        const sortedCategories = categoryOrder.filter(cat => grouped[cat]);
-        Object.keys(grouped).forEach(cat => {
-            if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
-        });
-
-        let currentY = 90; // Start lower due to larger header
+        let currentY = 90;
 
         for (let i = 0; i < sortedCategories.length; i++) {
             const cat = sortedCategories[i];
-
             const tableRows = [];
             const adjustment = getGlobalAdjustment() / 100;
 
             for (const item of grouped[cat]) {
                 const imgInfo = await getImageDataFromUrl(item.img);
                 const adjustedPrice = item.precio * (1 + adjustment);
-                tableRows.push([
+
+                const row = [
                     { content: '', imageInfo: imgInfo },
                     (item.nombre || "").toUpperCase(),
-                    item.codigo,
-                    formatCurrency(adjustedPrice) // No '$' here, handled in hook
-                ]);
+                    item.codigo
+                ];
+                if (includePrices) {
+                    row.push(formatCurrency(adjustedPrice));
+                }
+                tableRows.push(row);
             }
+
+            const headers = ['Imagen', 'Nombre', 'Código Facturación'];
+            if (includePrices) headers.push('Precio antes de IVA');
+
+            const colStyles = {
+                0: { cellWidth: 40, minCellHeight: 32, halign: 'center', valign: 'middle' },
+                1: { cellWidth: 'auto', halign: 'center', valign: 'middle' },
+                2: { cellWidth: 40, halign: 'center', valign: 'middle' }
+            };
+            if (includePrices) colStyles[3] = { cellWidth: 45, halign: 'right', valign: 'middle' };
 
             autoTable(doc, {
                 startY: currentY,
                 head: [
-                    // Grouped header for Category with #FFFCF2 background
-                    [{
-                        content: cat,
-                        colSpan: 4,
-                        styles: { halign: 'center', fillColor: [255, 252, 242], textColor: [0, 0, 0], fontSize: 12, fontStyle: 'bold' }
-                    }],
-                    // Column labels
-                    ['Imagen', 'Nombre', 'Código Facturación', 'Precio antes de IVA']
+                    [{ content: cat, colSpan: includePrices ? 4 : 3, styles: { halign: 'center', fillColor: [255, 252, 242], textColor: [0, 0, 0], fontSize: 12, fontStyle: 'bold' } }],
+                    headers
                 ],
                 body: tableRows,
                 theme: 'plain',
                 rowPageBreak: 'avoid',
-                headStyles: {
-                    fillColor: [255, 252, 242], // #FFFCF2
-                    textColor: [0, 0, 0],
-                    fontStyle: 'bold',
-                    halign: 'center',
-                    fontSize: 10
-                },
-                columnStyles: {
-                    0: { cellWidth: 40, minCellHeight: 32, halign: 'center', valign: 'middle' },
-                    1: { cellWidth: 'auto', halign: 'center', valign: 'middle' },
-                    2: { cellWidth: 40, halign: 'center', valign: 'middle' },
-                    3: { cellWidth: 45, halign: 'right', valign: 'middle' }
-                },
+                headStyles: { fillColor: [255, 252, 242], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', fontSize: 10 },
+                columnStyles: colStyles,
                 styles: { fontSize: 9, cellPadding: 1, valign: 'middle', lineColor: [255, 255, 255], lineWidth: 0.5, font: 'helvetica' },
                 didDrawCell: (data) => {
                     if (data.section === 'body' && data.column.index === 0 && data.cell.raw.imageInfo) {
                         const info = data.cell.raw.imageInfo;
                         const maxW = 30;
                         const maxH = 30;
-
-                        let finalW = maxW;
-                        let finalH = maxH;
-
+                        let finalW = maxW, finalH = maxH;
                         if (info.width && info.height) {
                             const ratio = info.width / info.height;
-                            if (ratio > 1) {
-                                // Landscape
-                                finalH = maxW / ratio;
-                            } else {
-                                // Portrait
-                                finalW = maxH * ratio;
-                            }
+                            ratio > 1 ? (finalH = maxW / ratio) : (finalW = maxH * ratio);
                         }
-
                         const x = data.cell.x + (data.cell.width - finalW) / 2;
                         const y = data.cell.y + (data.cell.height - finalH) / 2;
-
                         doc.addImage(info.base64, 'JPEG', x, y, finalW, finalH);
                     }
-
-                    // Add explicitly separated $ sign for prices
-                    if (data.section === 'body' && data.column.index === 3) {
+                    if (includePrices && data.section === 'body' && data.column.index === 3) {
                         doc.setFont("helvetica", "normal");
                         doc.setFontSize(9);
-                        doc.setTextColor(0, 0, 0);
-                        const paddingX = data.cell.padding('left');
-                        const textY = data.cell.y + (data.cell.height / 2) + 3; // Center roughly
-                        doc.text('$', data.cell.x + paddingX, textY);
+                        doc.text('$', data.cell.x + data.cell.padding('left'), data.cell.y + (data.cell.height / 2) + 3);
                     }
                 },
                 margin: { top: 30, bottom: 25 }
             });
 
             currentY = doc.lastAutoTable.finalY + 20;
-
             if (i < sortedCategories.length - 1 && currentY > 240) {
                 doc.addPage();
                 currentY = 20;
             }
         }
 
-        // CONTACTO Section at the end
-        if (currentY > 230) {
-            doc.addPage();
-            currentY = 20;
-        } else {
-            currentY += 10;
-        }
-
+        // CONTACTO Section
+        if (currentY > 230) { doc.addPage(); currentY = 20; } else { currentY += 10; }
         doc.setFontSize(16);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(219, 207, 172); // Sielu Accent
+        doc.setTextColor(219, 207, 172);
         doc.text("CONTACTO", pageWidth / 2, currentY, { align: 'center' });
         currentY += 12;
-
         doc.setFontSize(11);
-        const col1 = pageWidth / 3;
-        const col2 = (pageWidth / 3) * 2;
-
-        doc.text("WhatsApp", col1, currentY, { align: 'center' });
-        doc.text("Instagram", col2, currentY, { align: 'center' });
-
+        doc.text("WhatsApp", pageWidth / 3, currentY, { align: 'center' });
+        doc.text("Instagram", (pageWidth / 3) * 2, currentY, { align: 'center' });
         currentY += 6;
         doc.setFont("helvetica", "normal");
         doc.setTextColor(0, 0, 0);
-        doc.text("+57 314 2188971", col1, currentY, { align: 'center' });
-        doc.text("@sielu.design", col2, currentY, { align: 'center' });
+        doc.text("+57 314 2188971", pageWidth / 3, currentY, { align: 'center' });
+        doc.text("@sielu.design", (pageWidth / 3) * 2, currentY, { align: 'center' });
 
-        // Final footer cleanup/check (in case of only one page)
         const totalPages = doc.internal.getNumberOfPages();
         for (let j = 1; j <= totalPages; j++) {
             doc.setPage(j);
             drawFooter(doc, j);
         }
 
-        doc.save(`Lista_Precios_Sielu_${fullDate.replace(/\s+/g, '_')}.pdf`);
+        const fileName = categoryFilter ? `Sielu_${categoryFilter.replace(/\s+/g, '_')}` : `Lista_Precios_Sielu_${fullDate.replace(/\s+/g, '_')}`;
+        doc.save(`${fileName}${includePrices ? '' : '_Sin_Precios'}.pdf`);
 
     } catch (e) {
         console.error("Error generating PDF:", e);
-        alert("Ocurrió un error al generar el PDF. Verifica que las imágenes estén disponibles.");
+        alert("Ocurrió un error al generar el PDF.");
     } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        mainBtn.disabled = false;
+        if (noPriceBtn) noPriceBtn.disabled = false;
     }
 }
 
-document.getElementById('btnDownload').addEventListener('click', generatePDF);
+document.getElementById('btnDownload').addEventListener('click', () => generatePDF(true));
+document.getElementById('btnDownloadNoPrices').addEventListener('click', () => generatePDF(false));
 
 // Initialize
 fetchProducts();
