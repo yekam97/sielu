@@ -9,31 +9,71 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
-    <header style="width: 100%; margin-bottom: 2rem;">
-        <p class="title-pre">Lista de Precios</p>
-        <img src="/logo.png" alt="Sielu Logo" class="logo-main">
-    </header>
-
-    <div style="text-align: center; max-width: 600px; padding: 2rem;">
-        <h2 style="font-family: var(--font-serif); margin-bottom: 1.5rem;">Cátalogo Digital</h2>
-        <p style="margin-bottom: 2.5rem; color: var(--sielu-text-muted);">Bienvenido a nuestra plataforma de precios
-            actualizada. Acceda a la lista completa de productos para visualización o administración.</p>
-
-        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-            <a href="view.html" class="btn-primary" style="padding: 1rem 2rem;">Ver Lista de Precios</a>
-            <a href="catalogo.html" class="btn-primary" style="padding: 1rem 2rem; background: var(--sielu-accent);">Ver
-                Catálogo Visual</a>
-            <a href="cotizador.html" class="btn-primary"
-                style="background-color: var(--sielu-text-dark); color: white;">
-                Generar Cotización (Acceso Restringido)
-            </a>
-            <a href="admin.html" class="btn-primary"
-                style="background-color: transparent; border: 1px solid var(--sielu-accent);">
-                Entrar al Admin (Acceso Restringido)
-            </a>
+<body class="home-page">
+    <!-- Top Utility Bar -->
+    <div class="top-utility-bar">
+        <div class="utility-left">EST. 2024</div>
+        <div class="utility-center">
+            <img src="/logo.png" alt="Sielu Logo" class="top-logo">
+        </div>
+        <div class="utility-right">
+            <i data-lucide="shopping-bag"></i>
+            <i data-lucide="user"></i>
         </div>
     </div>
+
+    <!-- Primary Navigation -->
+    <nav class="home-nav">
+        <ul>
+            <li><a href="#" class="active">Catalog</a></li>
+            <li><a href="view.html">Price List</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Contact</a></li>
+        </ul>
+    </nav>
+
+    <main class="home-main">
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <p class="hero-label">LISTA DE PRECIOS</p>
+            <div class="hero-logo-box">
+                <img src="/logo.png" alt="Sielu Logo" class="hero-logo-img">
+            </div>
+            <h1 class="hero-title">Catálogo Digital</h1>
+            <p class="hero-subtitle">Bienvenido a nuestra plataforma de precios actualizada. Acceda a la lista completa
+                de productos para visualización o administración.</p>
+        </section>
+
+        <!-- Action Cards Grid -->
+        <section class="home-cards-grid">
+            <a href="view.html" class="home-card">
+                <i data-lucide="list"></i>
+                <span>Ver Lista de Precios</span>
+            </a>
+            <a href="catalogo.html" class="home-card">
+                <i data-lucide="sparkles"></i>
+                <span>Ver Catálogo Visual</span>
+            </a>
+        </section>
+
+        <!-- Admin / Restricted Footer -->
+        <footer class="admin-footer">
+            <div class="restricted-label">
+                <i data-lucide="lock"></i>
+                ÁREA RESTRINGIDA
+            </div>
+            <div class="admin-buttons">
+                <a href="cotizador.html" class="btn-black">GENERAR COTIZACIÓN</a>
+                <a href="admin.html" class="btn-outline">ENTRAR AL ADMIN</a>
+            </div>
+        </footer>
+    </main>
+
+    <!-- Lucide Icons Script -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+    </script>
 </body>
 
 </html>
