@@ -274,8 +274,12 @@ async function generatePDF(includePrices = true, categoryFilter = null) {
 
     try {
         const doc = new jsPDF();
-        const year = new Date().getFullYear();
-        const fullDate = `Junio ${year}`;
+        const now = new Date();
+        const year = now.getFullYear();
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ];
+        const fullDate = `${monthNames[now.getMonth()]} ${year}`;
 
         // 1. Full-width Tan Header Block
         const pageWidth = doc.internal.pageSize.width;
