@@ -261,7 +261,7 @@ textarea {
 /* --- FLIPBOOK STYLES (Issuu-style) --- */
 .book-viewport {
     width: 100%;
-    min-height: 520px;
+    min-height: 580px;
     display: flex;
     justify-content: center;
     align-items: center;

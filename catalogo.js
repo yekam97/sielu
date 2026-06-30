@@ -298,11 +298,11 @@ function renderFlipbook() {
 
     const filteredItems = getFilteredItems();
 
-    // 1. Front Cover Page (Landscape 1050x480)
+    // 1. Front Cover Page (Landscape 1050x560)
     const coverPage = document.createElement('div');
     coverPage.className = 'page -cover';
     coverPage.style.width = '1050px';
-    coverPage.style.height = '480px';
+    coverPage.style.height = '560px';
     coverPage.style.padding = '0';
     coverPage.innerHTML = `
         <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
@@ -318,7 +318,7 @@ function renderFlipbook() {
         const noResultsPage = document.createElement('div');
         noResultsPage.className = 'page';
         noResultsPage.style.width = '1050px';
-        noResultsPage.style.height = '480px';
+        noResultsPage.style.height = '560px';
         noResultsPage.innerHTML = `
             <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; display: flex;">
                 <p style="font-family: var(--font-sans); font-size: 1.1rem; color: var(--sielu-text-muted);">No se encontraron productos para esta búsqueda.</p>
@@ -334,7 +334,7 @@ function renderFlipbook() {
     const indexPage = document.createElement('div');
     indexPage.className = 'page';
     indexPage.style.width = '1050px';
-    indexPage.style.height = '480px';
+    indexPage.style.height = '560px';
     
     let indexHtml = `
         <div class="page-content" style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; box-sizing: border-box;">
@@ -368,7 +368,7 @@ function renderFlipbook() {
             const page = document.createElement('div');
             page.className = 'page';
             page.style.width = '1050px';
-            page.style.height = '480px';
+            page.style.height = '560px';
             page.style.padding = '0';
             
             page.innerHTML = `
@@ -427,7 +427,7 @@ function renderFlipbook() {
     const backCoverPage = document.createElement('div');
     backCoverPage.className = 'page -cover';
     backCoverPage.style.width = '1050px';
-    backCoverPage.style.height = '480px';
+    backCoverPage.style.height = '560px';
     backCoverPage.style.padding = '0';
     backCoverPage.innerHTML = `
         <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
@@ -451,12 +451,12 @@ function initPageFlip() {
     
     pageFlipInstance = new PageFlip(container, {
         width: 1050, // base page width (landscape)
-        height: 480, // base page height (landscape)
+        height: 560, // base page height (landscape)
         size: "stretch",
         minWidth: 500,
         maxWidth: 1100,
         minHeight: 250,
-        maxHeight: 500,
+        maxHeight: 595,
         maxShadowOpacity: 0.3,
         showCover: false, // Single landscape page mode, no double cover
         mode: "portrait", // Forces single-page view in PageFlip
