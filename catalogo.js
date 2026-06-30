@@ -7,6 +7,9 @@ let categoryOrder = [];
 let pageFlipInstance = null;
 let currentView = 'list'; // 'list' or 'flipbook'
 
+// Map to store the starting page index of each category in the flipbook
+let categoryPageMap = {};
+
 // Parse specifications field (e.g. "TIPO LÁMPARA: Spot\nMATERIAL: Aluminio") into key-value pairs
 function parseSpecifications(specsText, item) {
     if (specsText && specsText.trim()) {
@@ -147,16 +150,24 @@ function renderCatalog() {
         tab.textContent = cat;
         tab.setAttribute('data-target', catId);
         tab.addEventListener('click', () => {
-            const targetEl = document.getElementById(catId);
-            if (targetEl) {
-                const headerOffset = 100; // Offset for header
-                const elementPosition = targetEl.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-                
-                window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
-                });
+            if (currentView === 'list') {
+                const targetEl = document.getElementById(catId);
+                if (targetEl) {
+                    const headerOffset = 100; // Offset for header
+                    const elementPosition = targetEl.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                    
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                    });
+                }
+            } else {
+                // Flipbook view: turn to target page
+                const targetPage = categoryPageMap[cat];
+                if (pageFlipInstance && targetPage !== undefined) {
+                    pageFlipInstance.flip(targetPage);
+                }
             }
             // Close dropdown
             document.getElementById('categoryDropdownContent').classList.remove('show');
@@ -279,23 +290,26 @@ function renderCatalog() {
     });
 }
 
-// RENDER FLIPBOOK VIEW
+// RENDER FLIPBOOK VIEW (Landscape Layout to match List view card)
 function renderFlipbook() {
     const container = document.getElementById('bookContainer');
     container.innerHTML = '';
+    categoryPageMap = {};
 
     const filteredItems = getFilteredItems();
 
-    // 1. Front Cover Page
+    // 1. Front Cover Page (Landscape 1050x480)
     const coverPage = document.createElement('div');
     coverPage.className = 'page -cover';
-    coverPage.setAttribute('data-density', 'hard');
+    coverPage.style.width = '1050px';
+    coverPage.style.height = '480px';
+    coverPage.style.padding = '0';
     coverPage.innerHTML = `
-        <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 2rem;">
-            <p style="font-family: var(--font-sans); font-size: 0.85rem; letter-spacing: 5px; color: var(--sielu-text-muted); text-transform: uppercase; margin-bottom: 2.5rem;">S I E L U</p>
-            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 3.2rem; font-weight: 300; color: var(--sielu-text-dark); margin: 0 0 1rem; letter-spacing: 2px; text-transform: uppercase; line-height: 1.2;">Catálogo Técnico</h1>
-            <div style="width: 65px; height: 1px; background-color: var(--sielu-accent); margin: 1.5rem auto 2.5rem;"></div>
-            <p style="font-family: var(--font-sans); font-size: 0.75rem; letter-spacing: 3px; color: var(--sielu-text-muted); text-transform: uppercase;">Volumen 01</p>
+        <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
+            <p style="font-family: var(--font-sans); font-size: 0.9rem; letter-spacing: 6px; color: var(--sielu-text-muted); text-transform: uppercase; margin-bottom: 1.5rem;">S I E L U</p>
+            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 3.5rem; font-weight: 300; color: var(--sielu-text-dark); margin: 0; letter-spacing: 3px; text-transform: uppercase; line-height: 1.2;">Catálogo Técnico</h1>
+            <div style="width: 80px; height: 1px; background-color: var(--sielu-accent); margin: 1.5rem auto 1.5rem;"></div>
+            <p style="font-family: var(--font-sans); font-size: 0.8rem; letter-spacing: 3px; color: var(--sielu-text-muted); text-transform: uppercase;">Volumen 01</p>
         </div>
     `;
     container.appendChild(coverPage);
@@ -303,9 +317,11 @@ function renderFlipbook() {
     if (filteredItems.length === 0) {
         const noResultsPage = document.createElement('div');
         noResultsPage.className = 'page';
+        noResultsPage.style.width = '1050px';
+        noResultsPage.style.height = '480px';
         noResultsPage.innerHTML = `
-            <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%;">
-                <p style="font-family: var(--font-sans); font-size: 1rem; color: var(--sielu-text-muted);">No se encontraron productos para esta búsqueda.</p>
+            <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; display: flex;">
+                <p style="font-family: var(--font-sans); font-size: 1.1rem; color: var(--sielu-text-muted);">No se encontraron productos para esta búsqueda.</p>
             </div>
         `;
         container.appendChild(noResultsPage);
@@ -314,17 +330,20 @@ function renderFlipbook() {
 
     const { grouped, sortedCategories } = getGroupedAndSortedItems(filteredItems);
 
-    // 2. Index Page
+    // 2. Index Page (Landscape)
     const indexPage = document.createElement('div');
     indexPage.className = 'page';
+    indexPage.style.width = '1050px';
+    indexPage.style.height = '480px';
+    
     let indexHtml = `
-        <div class="page-content" style="height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 1.5rem 0;">
-            <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 2.4rem; font-weight: 400; color: var(--sielu-text-dark); margin-bottom: 2rem; text-align: center; text-transform: uppercase; letter-spacing: 1px;">Contenido</h2>
-            <div style="display: flex; flex-direction: column; gap: 0.8rem; width: 100%; max-width: 320px; margin: 0 auto;">
+        <div class="page-content" style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; box-sizing: border-box;">
+            <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 2.4rem; font-weight: 400; color: var(--sielu-text-dark); margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 1px;">Contenido</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 3rem; width: 100%; max-width: 700px;">
     `;
     sortedCategories.forEach(cat => {
         indexHtml += `
-            <div style="display: flex; justify-content: space-between; font-family: var(--font-sans); font-size: 0.8rem; border-bottom: 1px dotted #B0A795; padding-bottom: 3px;">
+            <div style="display: flex; justify-content: space-between; font-family: var(--font-sans); font-size: 0.85rem; border-bottom: 1px dotted #B0A795; padding-bottom: 3px;">
                 <span style="font-weight: 600; color: var(--sielu-text-dark); text-transform: uppercase; letter-spacing: 0.5px;">${cat}</span>
             </div>
         `;
@@ -336,70 +355,86 @@ function renderFlipbook() {
     indexPage.innerHTML = indexHtml;
     container.appendChild(indexPage);
 
-    // 3. Product Pages
+    let pageIndex = 2; // Index starts at 2 (0: Cover, 1: Index)
+
+    // 3. Product Pages (Landscape - Exact match of list view card layout)
     sortedCategories.forEach(cat => {
+        // Map category starting page
+        categoryPageMap[cat] = pageIndex;
+
         grouped[cat].forEach(item => {
             const specs = parseSpecifications(item.especificaciones, item);
 
             const page = document.createElement('div');
             page.className = 'page';
+            page.style.width = '1050px';
+            page.style.height = '480px';
+            page.style.padding = '0';
             
             page.innerHTML = `
-                <div class="page-content" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
-                    <!-- Product Image -->
-                    <div style="width: 100%; height: 260px; overflow: hidden; border-radius: 4px; background-color: #FAF5EE; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #ECE7DB;">
-                        <img src="${item.imgContexto || item.img || ''}" style="width: 100%; height: 100%; object-fit: cover;" alt="${item.nombre}" onerror="this.style.display='none'">
+                <div class="page-content" style="height: 100%; display: flex; flex-direction: row; box-sizing: border-box; overflow: hidden; width: 100%;">
+                    <!-- Left: Context Image -->
+                    <div style="flex: 1.1; height: 100%; position: relative; overflow: hidden; background-color: #EFECE6;">
+                        <img src="${item.imgContexto || item.img || ''}" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="${item.nombre}" onerror="this.style.display='none'">
                     </div>
                     
-                    <!-- Category Name Tag -->
-                    <div style="text-align: left; margin-top: 0.8rem;">
-                        <span style="font-family: var(--font-sans); font-size: 0.7rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
-                    </div>
-
-                    <!-- Product Title & Model (Poppins) -->
-                    <div style="text-align: left; margin: 0.2rem 0 0.8rem;">
-                        <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.15rem; font-weight: 600; margin: 0 0 0.1rem; color: var(--sielu-text-dark); text-transform: uppercase; line-height: 1.3;">${item.nombre}</h3>
-                        <p style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 500; color: var(--sielu-text-muted); margin: 0; letter-spacing: 0.5px;">MODEL: ${item.codigo}</p>
-                    </div>
-                    
-                    <!-- Specs List (Dotted Leaders) -->
-                    <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-start; margin-bottom: 0.8rem;">
-                        <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.85rem; font-weight: 700; color: var(--sielu-text-dark); letter-spacing: 1px; margin-bottom: 0.4rem; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 2px;">Especificaciones</h4>
-                        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
-                            ${specs.length > 0 ? specs.slice(0, 6).map(spec => `
-                                <div style="display: flex; align-items: baseline; justify-content: space-between; width: 100%;">
-                                    <span style="font-family: var(--font-sans); font-weight: 600; font-size: 0.65rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
-                                    <span style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 4px; align-self: flex-end; margin-bottom: 2px;"></span>
-                                    <span style="font-family: var(--font-sans); font-size: 0.7rem; color: var(--sielu-text-dark); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${spec.value}</span>
-                                </div>
-                            `).join('') : `
-                                <div style="font-family: var(--font-sans); font-size: 0.7rem; color: #888; font-style: italic;">Sin especificaciones disponibles</div>
-                            `}
+                    <!-- Right: Product Details -->
+                    <div style="flex: 1.2; padding: 2.5rem; display: flex; flex-direction: column; justify-content: flex-start; box-sizing: border-box; height: 100%; overflow: hidden;">
+                        
+                        <!-- Category name -->
+                        <div style="text-align: left; margin-bottom: 0.3rem;">
+                            <span style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
                         </div>
+
+                        <!-- Title & Model -->
+                        <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.7rem; font-weight: 600; text-align: left; color: var(--sielu-text-dark); margin: 0 0 0.2rem; line-height: 1.3; text-transform: uppercase;">${item.nombre}</h3>
+                        <p style="font-family: var(--font-sans); font-size: 0.85rem; font-weight: 500; color: var(--sielu-text-muted); text-align: left; letter-spacing: 1px; margin: 0 0 1.5rem; text-transform: uppercase;">MODEL: ${item.codigo}</p>
+                        
+                        <!-- Specs -->
+                        <div class="specs-section" style="width: 100%; margin-bottom: 1.5rem;">
+                            <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 700; color: var(--sielu-text-dark); letter-spacing: 1.5px; margin-bottom: 0.6rem; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 2px;">ESPECIFICACIONES TÉCNICAS</h4>
+                            <div class="specs-list" style="display: flex; flex-direction: column; gap: 0.4rem;">
+                                ${specs.length > 0 ? specs.slice(0, 6).map(spec => `
+                                    <div class="spec-item" style="display: flex; align-items: baseline; justify-content: space-between; width: 100%;">
+                                        <span class="spec-label" style="font-family: var(--font-sans); font-weight: 600; font-size: 0.8rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
+                                        <span class="spec-dots" style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 8px; align-self: flex-end; margin-bottom: 3px;"></span>
+                                        <span class="spec-value" style="font-family: var(--font-sans); font-size: 0.85rem; color: var(--sielu-text-dark); text-align: right; word-break: break-word;">${spec.value}</span>
+                                    </div>
+                                `).join('') : `
+                                    <div style="font-family: var(--font-sans); font-size: 0.8rem; color: #888; font-style: italic;">Sin especificaciones disponibles</div>
+                                `}
+                            </div>
+                        </div>
+                        
+                        <!-- Drawing -->
+                        ${item.dibujo ? `
+                        <div class="drawing-section" style="width: 100%; margin-top: auto;">
+                            <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 700; color: var(--sielu-text-dark); letter-spacing: 1.5px; margin-bottom: 0.5rem; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
+                            <div class="drawing-container" style="display: flex; justify-content: flex-end; align-items: center; width: 100%; margin-top: 0.2rem; height: 95px;">
+                                <img class="drawing-img" src="${item.dibujo}" style="max-height: 90px; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
-                    
-                    <!-- Technical Drawing -->
-                    ${item.dibujo ? `
-                    <div style="border-top: 1px solid #ECE7DB; padding-top: 0.4rem; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 85px;">
-                        <img src="${item.dibujo}" style="max-height: 75px; max-width: 100%; object-fit: contain; mix-blend-mode: multiply;" alt="Dimensiones" onerror="this.parentNode.style.display='none'">
-                    </div>
-                    ` : ''}
                 </div>
             `;
             container.appendChild(page);
+            pageIndex++;
         });
     });
 
-    // 4. Back Cover Page
+    // 4. Back Cover Page (Landscape)
     const backCoverPage = document.createElement('div');
     backCoverPage.className = 'page -cover';
-    backCoverPage.setAttribute('data-density', 'hard');
+    backCoverPage.style.width = '1050px';
+    backCoverPage.style.height = '480px';
+    backCoverPage.style.padding = '0';
     backCoverPage.innerHTML = `
-        <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 2rem;">
-            <img src="/logo.png" style="max-width: 160px; margin-bottom: 2rem; display: block;" alt="Sielu Logo" onerror="this.style.display='none'">
-            <div style="width: 40px; height: 1px; background-color: var(--sielu-accent); margin: 1.5rem auto;"></div>
-            <p style="font-family: var(--font-sans); font-size: 0.8rem; color: var(--sielu-text-muted); margin-bottom: 0.4rem; letter-spacing: 1px;">sielu.design</p>
-            <p style="font-family: var(--font-sans); font-size: 0.8rem; color: var(--sielu-text-muted); letter-spacing: 0.5px;">+57 314 2188971</p>
+        <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
+            <img src="/logo.png" style="max-width: 180px; margin-bottom: 1.5rem; display: block;" alt="Sielu Logo" onerror="this.style.display='none'">
+            <div style="width: 50px; height: 1px; background-color: var(--sielu-accent); margin: 1rem auto;"></div>
+            <p style="font-family: var(--font-sans); font-size: 0.85rem; color: var(--sielu-text-muted); margin-bottom: 0.4rem; letter-spacing: 1.5px; text-transform: uppercase;">sielu.design</p>
+            <p style="font-family: var(--font-sans); font-size: 0.85rem; color: var(--sielu-text-muted); letter-spacing: 1px;">+57 314 2188971</p>
         </div>
     `;
     container.appendChild(backCoverPage);
@@ -415,15 +450,16 @@ function initPageFlip() {
     const pages = container.querySelectorAll('.page');
     
     pageFlipInstance = new PageFlip(container, {
-        width: 550, // base page width
-        height: 750, // base page height
+        width: 1050, // base page width (landscape)
+        height: 480, // base page height (landscape)
         size: "stretch",
-        minWidth: 315,
-        maxWidth: 1000,
-        minHeight: 420,
-        maxHeight: 1350,
-        maxShadowOpacity: 0.4,
-        showCover: true,
+        minWidth: 500,
+        maxWidth: 1100,
+        minHeight: 250,
+        maxHeight: 500,
+        maxShadowOpacity: 0.3,
+        showCover: false, // Single landscape page mode, no double cover
+        mode: "portrait", // Forces single-page view in PageFlip
         mobileScrollSupport: false
     });
     
@@ -434,6 +470,7 @@ function initPageFlip() {
     
     pageFlipInstance.on('flip', () => {
         updatePageCounter();
+        updateDropdownActiveTabForFlipbook();
     });
     
     document.getElementById('btnPrev').onclick = () => pageFlipInstance.flipPrev();
@@ -445,6 +482,47 @@ function updatePageCounter() {
     const current = pageFlipInstance.getCurrentPageIndex() + 1;
     const total = pageFlipInstance.getPageCount();
     document.getElementById('pageCounter').innerText = `${current} / ${total}`;
+}
+
+// Update the dropdown active tab and text when flipping pages in flipbook view
+function updateDropdownActiveTabForFlipbook() {
+    if (!pageFlipInstance || currentView !== 'flipbook') return;
+    const currentPageIndex = pageFlipInstance.getCurrentPageIndex();
+    const dropdownItems = document.querySelectorAll('.dropdown-item');
+    const activeCategoryName = document.getElementById('activeCategoryName');
+
+    let activeCat = '';
+    
+    // Find which category matches the current page index
+    const sortedCats = Object.keys(categoryPageMap).sort((a, b) => categoryPageMap[a] - categoryPageMap[b]);
+    for (let i = 0; i < sortedCats.length; i++) {
+        const cat = sortedCats[i];
+        const startPage = categoryPageMap[cat];
+        const nextStartPage = categoryPageMap[sortedCats[i + 1]] || Infinity;
+        
+        if (currentPageIndex >= startPage && currentPageIndex < nextStartPage) {
+            activeCat = cat;
+            break;
+        }
+    }
+
+    let foundActive = false;
+    if (activeCat) {
+        dropdownItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.textContent === activeCat) {
+                item.classList.add('active');
+                if (activeCategoryName) {
+                    activeCategoryName.textContent = item.textContent;
+                }
+                foundActive = true;
+            }
+        });
+    }
+
+    if (!foundActive && activeCategoryName) {
+        activeCategoryName.textContent = 'Ir a Categoría...';
+    }
 }
 
 // SCROLL SPY FOR LIST VIEW
@@ -508,7 +586,6 @@ if (dropdownBtn && dropdownContent) {
 const viewToggleBtn = document.getElementById('viewToggleBtn');
 const catalogMain = document.getElementById('catalogMain');
 const flipbookMain = document.getElementById('flipbookMain');
-const categoryDropdownWrapper = document.getElementById('categoryDropdownWrapper');
 const viewToggleText = document.getElementById('viewToggleText');
 const viewToggleIcon = document.getElementById('viewToggleIcon');
 
@@ -517,7 +594,6 @@ if (viewToggleBtn) {
         if (currentView === 'list') {
             currentView = 'flipbook';
             catalogMain.style.display = 'none';
-            if (categoryDropdownWrapper) categoryDropdownWrapper.style.display = 'none';
             flipbookMain.style.display = 'flex';
             viewToggleText.textContent = 'Vista de Lista';
             viewToggleIcon.textContent = '📋';
@@ -529,7 +605,6 @@ if (viewToggleBtn) {
             currentView = 'list';
             flipbookMain.style.display = 'none';
             catalogMain.style.display = 'block';
-            if (categoryDropdownWrapper) categoryDropdownWrapper.style.display = 'block';
             viewToggleText.textContent = 'Vista Flipbook';
             viewToggleIcon.textContent = '📖';
             
