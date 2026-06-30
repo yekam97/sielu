@@ -126,16 +126,15 @@ function renderCatalog() {
         // Safe ID for scrolling anchor
         const catId = `cat-${cat.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '').toLowerCase()}`;
 
-        // Create Navigation Tab
-        const tab = document.createElement('a');
-        tab.className = `catalog-nav-item ${index === 0 ? 'active' : ''}`;
+        // Create Navigation Option in Dropdown
+        const tab = document.createElement('div');
+        tab.className = `dropdown-item`;
         tab.textContent = cat;
-        tab.href = `#${catId}`;
-        tab.addEventListener('click', (e) => {
-            e.preventDefault();
+        tab.setAttribute('data-target', catId);
+        tab.addEventListener('click', () => {
             const targetEl = document.getElementById(catId);
             if (targetEl) {
-                const headerOffset = 140; // Offset for sticky navbar + header
+                const headerOffset = 100; // Offset for header
                 const elementPosition = targetEl.getBoundingClientRect().top;
                 const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
                 
@@ -144,6 +143,8 @@ function renderCatalog() {
                     behavior: 'smooth'
                 });
             }
+            // Close dropdown
+            document.getElementById('categoryDropdownContent').classList.remove('show');
         });
         nav.appendChild(tab);
 
@@ -265,11 +266,12 @@ function renderCatalog() {
 
 function setupScrollListener() {
     const sections = document.querySelectorAll('.catalog-category-section');
-    const navItems = document.querySelectorAll('.catalog-nav-item');
+    const dropdownItems = document.querySelectorAll('.dropdown-item');
+    const activeCategoryName = document.getElementById('activeCategoryName');
 
     window.addEventListener('scroll', () => {
         let current = '';
-        const scrollPosition = window.scrollY + 180; // offset to match header / sticky bar
+        const scrollPosition = window.scrollY + 160; // offset to match header / controls bar
 
         sections.forEach(section => {
             const sectionTop = section.offsetTop;
@@ -279,13 +281,39 @@ function setupScrollListener() {
             }
         });
 
+        let foundActive = false;
         if (current) {
-            navItems.forEach(item => {
+            dropdownItems.forEach(item => {
                 item.classList.remove('active');
-                if (item.getAttribute('href') === `#${current}`) {
+                if (item.getAttribute('data-target') === current) {
                     item.classList.add('active');
+                    if (activeCategoryName) {
+                        activeCategoryName.textContent = item.textContent;
+                    }
+                    foundActive = true;
                 }
             });
+        }
+
+        if (!foundActive && activeCategoryName) {
+            activeCategoryName.textContent = 'Ir a Categoría...';
+        }
+    });
+}
+
+// Dropdown Toggle Logic
+const dropdownBtn = document.getElementById('categoryDropdownBtn');
+const dropdownContent = document.getElementById('categoryDropdownContent');
+
+if (dropdownBtn && dropdownContent) {
+    dropdownBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdownContent.classList.toggle('show');
+    });
+
+    window.addEventListener('click', (e) => {
+        if (!dropdownBtn.contains(e.target) && !dropdownContent.contains(e.target)) {
+            dropdownContent.classList.remove('show');
         }
     });
 }

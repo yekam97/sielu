@@ -25,16 +25,23 @@
         </div>
     </header>
 
-    <div class="controls-container" style="max-width: 1050px; margin: 2rem auto 1rem;">
+    <div class="controls-container" style="max-width: 1050px; margin: 2rem auto 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
         <a href="index.html" class="btn-primary" style="background: #eee; font-size: 0.9rem; padding: 0.6rem 1.2rem;">Volver al Inicio</a>
-        <input type="text" id="searchInput" placeholder="Buscar en el catálogo..." style="max-width: 400px; padding: 0.6rem 1.2rem; border-radius: 50px;">
-    </div>
-
-    <!-- Category sticky navigation bar -->
-    <div class="catalog-nav-wrapper">
-        <nav class="catalog-nav" id="catalogNav">
-            <!-- Dynamic category tabs will be injected here -->
-        </nav>
+        
+        <div style="display: flex; gap: 1rem; align-items: center; flex: 1; justify-content: flex-end;">
+            <!-- Category Dropdown -->
+            <div class="category-dropdown-container">
+                <button class="dropdown-btn" id="categoryDropdownBtn">
+                    <span id="activeCategoryName">Ir a Categoría...</span>
+                    <span style="font-size: 0.7rem;">▼</span>
+                </button>
+                <div class="dropdown-content" id="categoryDropdownContent">
+                    <!-- Dynamic category options will be injected here -->
+                </div>
+            </div>
+            
+            <input type="text" id="searchInput" placeholder="Buscar en el catálogo..." style="max-width: 300px; width: 100%; padding: 0.6rem 1.2rem; border-radius: 50px;">
+        </div>
     </div>
 
     <!-- Main catalog product list -->
