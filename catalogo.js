@@ -1,8 +1,11 @@
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "./firebase-config.js";
+import { PageFlip } from "page-flip";
 
 let allProducts = [];
 let categoryOrder = [];
+let pageFlipInstance = null;
+let currentView = 'list'; // 'list' or 'flipbook'
 
 // Parse specifications field (e.g. "TIPO LÁMPARA: Spot\nMATERIAL: Aluminio") into key-value pairs
 function parseSpecifications(specsText, item) {
@@ -74,15 +77,9 @@ async function fetchProducts() {
     }
 }
 
-function renderCatalog() {
+// Get filtered items based on search input
+function getFilteredItems() {
     const filter = document.getElementById('searchInput').value.toLowerCase();
-    const container = document.getElementById('catalogContainer');
-    const nav = document.getElementById('categoryDropdownContent');
-    
-    container.innerHTML = '';
-    if (nav) nav.innerHTML = '';
-
-    // Filter items based on search input
     let filteredItems = allProducts;
     if (filter) {
         filteredItems = allProducts.filter(item => 
@@ -91,15 +88,13 @@ function renderCatalog() {
             item.cat.toLowerCase().includes(filter)
         );
     }
+    return filteredItems;
+}
 
-    if (filteredItems.length === 0) {
-        container.innerHTML = '<div class="loading-catalog">No se encontraron productos en el catálogo.</div>';
-        return;
-    }
-
-    // Group items by category
+// Group and sort items by category
+function getGroupedAndSortedItems(items) {
     const grouped = {};
-    filteredItems.forEach(item => {
+    items.forEach(item => {
         const cat = item.cat;
         if (!grouped[cat]) grouped[cat] = [];
         grouped[cat].push(item);
@@ -120,6 +115,26 @@ function renderCatalog() {
     Object.keys(grouped).forEach(cat => {
         if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
     });
+
+    return { grouped, sortedCategories };
+}
+
+// RENDER LIST VIEW
+function renderCatalog() {
+    const container = document.getElementById('catalogContainer');
+    const nav = document.getElementById('categoryDropdownContent');
+    
+    container.innerHTML = '';
+    if (nav) nav.innerHTML = '';
+
+    const filteredItems = getFilteredItems();
+
+    if (filteredItems.length === 0) {
+        container.innerHTML = '<div class="loading-catalog">No se encontraron productos en el catálogo.</div>';
+        return;
+    }
+
+    const { grouped, sortedCategories } = getGroupedAndSortedItems(filteredItems);
 
     // Render Navigation and Category Sections
     sortedCategories.forEach((cat, index) => {
@@ -184,7 +199,7 @@ function renderCatalog() {
             const cardRight = document.createElement('div');
             cardRight.className = 'card-right';
 
-            // Title and model
+            // Title and model (Poppins)
             const productTitle = document.createElement('h3');
             productTitle.className = 'product-title';
             productTitle.textContent = item.nombre;
@@ -264,12 +279,183 @@ function renderCatalog() {
     });
 }
 
+// RENDER FLIPBOOK VIEW
+function renderFlipbook() {
+    const container = document.getElementById('bookContainer');
+    container.innerHTML = '';
+
+    const filteredItems = getFilteredItems();
+
+    // 1. Front Cover Page
+    const coverPage = document.createElement('div');
+    coverPage.className = 'page -cover';
+    coverPage.setAttribute('data-density', 'hard');
+    coverPage.innerHTML = `
+        <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 2rem;">
+            <p style="font-family: var(--font-sans); font-size: 0.85rem; letter-spacing: 5px; color: var(--sielu-text-muted); text-transform: uppercase; margin-bottom: 2.5rem;">S I E L U</p>
+            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 3.2rem; font-weight: 300; color: var(--sielu-text-dark); margin: 0 0 1rem; letter-spacing: 2px; text-transform: uppercase; line-height: 1.2;">Catálogo Técnico</h1>
+            <div style="width: 65px; height: 1px; background-color: var(--sielu-accent); margin: 1.5rem auto 2.5rem;"></div>
+            <p style="font-family: var(--font-sans); font-size: 0.75rem; letter-spacing: 3px; color: var(--sielu-text-muted); text-transform: uppercase;">Volumen 01</p>
+        </div>
+    `;
+    container.appendChild(coverPage);
+
+    if (filteredItems.length === 0) {
+        const noResultsPage = document.createElement('div');
+        noResultsPage.className = 'page';
+        noResultsPage.innerHTML = `
+            <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%;">
+                <p style="font-family: var(--font-sans); font-size: 1rem; color: var(--sielu-text-muted);">No se encontraron productos para esta búsqueda.</p>
+            </div>
+        `;
+        container.appendChild(noResultsPage);
+        return;
+    }
+
+    const { grouped, sortedCategories } = getGroupedAndSortedItems(filteredItems);
+
+    // 2. Index Page
+    const indexPage = document.createElement('div');
+    indexPage.className = 'page';
+    let indexHtml = `
+        <div class="page-content" style="height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 1.5rem 0;">
+            <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 2.4rem; font-weight: 400; color: var(--sielu-text-dark); margin-bottom: 2rem; text-align: center; text-transform: uppercase; letter-spacing: 1px;">Contenido</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.8rem; width: 100%; max-width: 320px; margin: 0 auto;">
+    `;
+    sortedCategories.forEach(cat => {
+        indexHtml += `
+            <div style="display: flex; justify-content: space-between; font-family: var(--font-sans); font-size: 0.8rem; border-bottom: 1px dotted #B0A795; padding-bottom: 3px;">
+                <span style="font-weight: 600; color: var(--sielu-text-dark); text-transform: uppercase; letter-spacing: 0.5px;">${cat}</span>
+            </div>
+        `;
+    });
+    indexHtml += `
+            </div>
+        </div>
+    `;
+    indexPage.innerHTML = indexHtml;
+    container.appendChild(indexPage);
+
+    // 3. Product Pages
+    sortedCategories.forEach(cat => {
+        grouped[cat].forEach(item => {
+            const specs = parseSpecifications(item.especificaciones, item);
+
+            const page = document.createElement('div');
+            page.className = 'page';
+            
+            page.innerHTML = `
+                <div class="page-content" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+                    <!-- Product Image -->
+                    <div style="width: 100%; height: 260px; overflow: hidden; border-radius: 4px; background-color: #FAF5EE; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #ECE7DB;">
+                        <img src="${item.imgContexto || item.img || ''}" style="width: 100%; height: 100%; object-fit: cover;" alt="${item.nombre}" onerror="this.style.display='none'">
+                    </div>
+                    
+                    <!-- Category Name Tag -->
+                    <div style="text-align: left; margin-top: 0.8rem;">
+                        <span style="font-family: var(--font-sans); font-size: 0.7rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
+                    </div>
+
+                    <!-- Product Title & Model (Poppins) -->
+                    <div style="text-align: left; margin: 0.2rem 0 0.8rem;">
+                        <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.15rem; font-weight: 600; margin: 0 0 0.1rem; color: var(--sielu-text-dark); text-transform: uppercase; line-height: 1.3;">${item.nombre}</h3>
+                        <p style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 500; color: var(--sielu-text-muted); margin: 0; letter-spacing: 0.5px;">MODEL: ${item.codigo}</p>
+                    </div>
+                    
+                    <!-- Specs List (Dotted Leaders) -->
+                    <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-start; margin-bottom: 0.8rem;">
+                        <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.85rem; font-weight: 700; color: var(--sielu-text-dark); letter-spacing: 1px; margin-bottom: 0.4rem; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 2px;">Especificaciones</h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                            ${specs.length > 0 ? specs.slice(0, 6).map(spec => `
+                                <div style="display: flex; align-items: baseline; justify-content: space-between; width: 100%;">
+                                    <span style="font-family: var(--font-sans); font-weight: 600; font-size: 0.65rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
+                                    <span style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 4px; align-self: flex-end; margin-bottom: 2px;"></span>
+                                    <span style="font-family: var(--font-sans); font-size: 0.7rem; color: var(--sielu-text-dark); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${spec.value}</span>
+                                </div>
+                            `).join('') : `
+                                <div style="font-family: var(--font-sans); font-size: 0.7rem; color: #888; font-style: italic;">Sin especificaciones disponibles</div>
+                            `}
+                        </div>
+                    </div>
+                    
+                    <!-- Technical Drawing -->
+                    ${item.dibujo ? `
+                    <div style="border-top: 1px solid #ECE7DB; padding-top: 0.4rem; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 85px;">
+                        <img src="${item.dibujo}" style="max-height: 75px; max-width: 100%; object-fit: contain; mix-blend-mode: multiply;" alt="Dimensiones" onerror="this.parentNode.style.display='none'">
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            container.appendChild(page);
+        });
+    });
+
+    // 4. Back Cover Page
+    const backCoverPage = document.createElement('div');
+    backCoverPage.className = 'page -cover';
+    backCoverPage.setAttribute('data-density', 'hard');
+    backCoverPage.innerHTML = `
+        <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 2rem;">
+            <img src="/logo.png" style="max-width: 160px; margin-bottom: 2rem; display: block;" alt="Sielu Logo" onerror="this.style.display='none'">
+            <div style="width: 40px; height: 1px; background-color: var(--sielu-accent); margin: 1.5rem auto;"></div>
+            <p style="font-family: var(--font-sans); font-size: 0.8rem; color: var(--sielu-text-muted); margin-bottom: 0.4rem; letter-spacing: 1px;">sielu.design</p>
+            <p style="font-family: var(--font-sans); font-size: 0.8rem; color: var(--sielu-text-muted); letter-spacing: 0.5px;">+57 314 2188971</p>
+        </div>
+    `;
+    container.appendChild(backCoverPage);
+}
+
+// INITIALIZE PAGEFLIP
+function initPageFlip() {
+    if (pageFlipInstance) {
+        pageFlipInstance.destroy();
+    }
+    
+    const container = document.getElementById('bookContainer');
+    const pages = container.querySelectorAll('.page');
+    
+    pageFlipInstance = new PageFlip(container, {
+        width: 550, // base page width
+        height: 750, // base page height
+        size: "stretch",
+        minWidth: 315,
+        maxWidth: 1000,
+        minHeight: 420,
+        maxHeight: 1350,
+        maxShadowOpacity: 0.4,
+        showCover: true,
+        mobileScrollSupport: false
+    });
+    
+    pageFlipInstance.loadFromHTML(pages);
+    
+    // Update page counter
+    updatePageCounter();
+    
+    pageFlipInstance.on('flip', () => {
+        updatePageCounter();
+    });
+    
+    document.getElementById('btnPrev').onclick = () => pageFlipInstance.flipPrev();
+    document.getElementById('btnNext').onclick = () => pageFlipInstance.flipNext();
+}
+
+function updatePageCounter() {
+    if (!pageFlipInstance) return;
+    const current = pageFlipInstance.getCurrentPageIndex() + 1;
+    const total = pageFlipInstance.getPageCount();
+    document.getElementById('pageCounter').innerText = `${current} / ${total}`;
+}
+
+// SCROLL SPY FOR LIST VIEW
 function setupScrollListener() {
     const sections = document.querySelectorAll('.catalog-category-section');
     const dropdownItems = document.querySelectorAll('.dropdown-item');
     const activeCategoryName = document.getElementById('activeCategoryName');
 
     window.addEventListener('scroll', () => {
+        if (currentView !== 'list') return; // Disable scroll spy in flipbook view
+        
         let current = '';
         const scrollPosition = window.scrollY + 160; // offset to match header / controls bar
 
@@ -301,7 +487,7 @@ function setupScrollListener() {
     });
 }
 
-// Dropdown Toggle Logic
+// Dropdown Toggle Logic (List View)
 const dropdownBtn = document.getElementById('categoryDropdownBtn');
 const dropdownContent = document.getElementById('categoryDropdownContent');
 
@@ -318,8 +504,55 @@ if (dropdownBtn && dropdownContent) {
     });
 }
 
+// VIEW TOGGLE LOGIC
+const viewToggleBtn = document.getElementById('viewToggleBtn');
+const catalogMain = document.getElementById('catalogMain');
+const flipbookMain = document.getElementById('flipbookMain');
+const categoryDropdownWrapper = document.getElementById('categoryDropdownWrapper');
+const viewToggleText = document.getElementById('viewToggleText');
+const viewToggleIcon = document.getElementById('viewToggleIcon');
+
+if (viewToggleBtn) {
+    viewToggleBtn.addEventListener('click', () => {
+        if (currentView === 'list') {
+            currentView = 'flipbook';
+            catalogMain.style.display = 'none';
+            if (categoryDropdownWrapper) categoryDropdownWrapper.style.display = 'none';
+            flipbookMain.style.display = 'flex';
+            viewToggleText.textContent = 'Vista de Lista';
+            viewToggleIcon.textContent = '📋';
+            
+            // Render and initialize flipbook
+            renderFlipbook();
+            initPageFlip();
+        } else {
+            currentView = 'list';
+            flipbookMain.style.display = 'none';
+            catalogMain.style.display = 'block';
+            if (categoryDropdownWrapper) categoryDropdownWrapper.style.display = 'block';
+            viewToggleText.textContent = 'Vista Flipbook';
+            viewToggleIcon.textContent = '📖';
+            
+            if (pageFlipInstance) {
+                pageFlipInstance.destroy();
+                pageFlipInstance = null;
+            }
+            
+            // Re-render list to ensure sync
+            renderCatalog();
+        }
+    });
+}
+
 // Search handler
-document.getElementById('searchInput').addEventListener('input', renderCatalog);
+document.getElementById('searchInput').addEventListener('input', () => {
+    if (currentView === 'list') {
+        renderCatalog();
+    } else {
+        renderFlipbook();
+        initPageFlip();
+    }
+});
 
 // Initialize fetch
 fetchProducts();

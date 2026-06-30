@@ -26,11 +26,18 @@
     </header>
 
     <div class="controls-container" style="max-width: 1050px; margin: 2rem auto 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-        <a href="index.html" class="btn-primary" style="background: #eee; font-size: 0.9rem; padding: 0.6rem 1.2rem;">Volver al Inicio</a>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <a href="index.html" class="btn-primary" style="background: #eee; font-size: 0.9rem; padding: 0.6rem 1.2rem; border-radius: 50px;">Volver al Inicio</a>
+            <!-- View Toggle Button -->
+            <button id="viewToggleBtn" class="btn-primary" style="background: #FAF6ED; border: 1px solid #ECE7DB; font-size: 0.9rem; padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 50px;">
+                <span id="viewToggleIcon">📖</span>
+                <span id="viewToggleText">Vista Flipbook</span>
+            </button>
+        </div>
         
         <div style="display: flex; gap: 1rem; align-items: center; flex: 1; justify-content: flex-end;">
             <!-- Category Dropdown -->
-            <div class="category-dropdown-container">
+            <div class="category-dropdown-container" id="categoryDropdownWrapper">
                 <button class="dropdown-btn" id="categoryDropdownBtn">
                     <span id="activeCategoryName">Ir a Categoría...</span>
                     <span style="font-size: 0.7rem;">▼</span>
@@ -50,6 +57,24 @@
             <div class="loading-catalog">Cargando catálogo visual...</div>
         </div>
     </main>
+
+    <!-- Flipbook view container (hidden by default) -->
+    <div id="flipbookMain" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 600px; padding: 2rem 0;">
+        <div id="flipbookControls" style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; justify-content: center;">
+            <button class="btn-primary" id="btnPrev" style="padding: 0.6rem 1.2rem; border-radius: 50px; background: #eee; font-size: 0.9rem;">◀ Anterior</button>
+            <span id="pageCounter" style="font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; color: var(--sielu-text-dark);">1 / 1</span>
+            <button class="btn-primary" id="btnNext" style="padding: 0.6rem 1.2rem; border-radius: 50px; background: #eee; font-size: 0.9rem;">Siguiente ▶</button>
+        </div>
+        
+        <div class="book-viewport">
+            <div class="container--book" id="bookContainer">
+                <!-- Pages will be injected dynamically -->
+            </div>
+        </div>
+        <div class="flip-hint" style="margin-top: 1.5rem; text-align: center; font-family: var(--font-sans); font-size: 0.9rem; color: var(--sielu-text-muted); font-style: italic;">
+            Usa las flechas o arrastra las esquinas para pasar la página
+        </div>
+    </div>
 
     <script type="module" src="catalogo.js"></script>
 </body>
