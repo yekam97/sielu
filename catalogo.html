@@ -4,34 +4,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catálogo - Sielu</title>
+    <title>Catálogo Visual - Sielu</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <header>
-        <p class="title-pre">Catálogo Interactivo</p>
+        <p class="title-pre">Catálogo Visual</p>
         <img src="/logo.png" alt="Sielu Logo" class="logo-main">
     </header>
 
-    <div class="controls-container">
-        <a href="index.html" class="btn-primary" style="background: #eee;">Volver al Inicio</a>
-        <div id="pageControls" style="display: none; align-items: center; gap: 1rem;">
-            <button class="btn-primary" id="btnPrev">Página Anterior</button>
-            <span id="pageCounter">1 / 1</span>
-            <button class="btn-primary" id="btnNext">Página Siguiente</button>
-        </div>
+    <div class="controls-container" style="max-width: 1050px; margin: 2rem auto 1rem;">
+        <a href="index.html" class="btn-primary" style="background: #eee; font-size: 0.9rem; padding: 0.6rem 1.2rem;">Volver al Inicio</a>
+        <input type="text" id="searchInput" placeholder="Buscar en el catálogo..." style="max-width: 400px; padding: 0.6rem 1.2rem; border-radius: 50px;">
     </div>
 
-    <div class="book-viewport">
-        <div class="container--book" id="bookContainer">
-            <!-- Pages will be injected here -->
-            <div class="loading-catalog">Cargando catálogo interactivo...</div>
-        </div>
+    <!-- Category sticky navigation bar -->
+    <div class="catalog-nav-wrapper">
+        <nav class="catalog-nav" id="catalogNav">
+            <!-- Dynamic category tabs will be injected here -->
+        </nav>
     </div>
 
-    <div class="flip-hint">Usa las flechas o arrastra las esquinas para pasar la página</div>
+    <!-- Main catalog product list -->
+    <main class="catalog-main" id="catalogMain">
+        <div id="catalogContainer">
+            <div class="loading-catalog">Cargando catálogo visual...</div>
+        </div>
+    </main>
 
     <script type="module" src="catalogo.js"></script>
 </body>

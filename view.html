@@ -9,46 +9,83 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
-    <header>
-        <p class="title-pre">Lista de Precios</p>
-        <img src="/logo.png" alt="Sielu Logo" class="logo-main" id="brandLogo">
-    </header>
-
-    <div class="controls-container">
-        <input type="text" id="searchInput" placeholder="Buscar por nombre, código o descripción...">
-        <div class="adjustment-box" style="display: flex; align-items: center; gap: 0.5rem;">
-            <label style="font-size: 0.9rem; font-weight: 600;">Ajuste Global (%):</label>
-            <input type="number" id="globalAdjustment" value="0" step="1"
-                style="width: 70px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+<body class="home-page">
+    <!-- Top Utility Bar -->
+    <div class="top-utility-bar">
+        <div class="utility-center">
+            <a href="index.html" style="text-decoration: none;">
+                <img src="/logo.png" alt="Sielu Logo" class="top-logo">
+            </a>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button id="btnDownload" class="btn-primary">Descargar PDF</button>
-            <button id="btnDownloadNoPrices" class="btn-primary" style="background-color: #f0f0f0; color: #333;">PDF Sin
-                Precios</button>
+        <div class="utility-right">
+            <i data-lucide="search"></i>
+            <i data-lucide="shopping-bag"></i>
+            <i data-lucide="user"></i>
         </div>
     </div>
 
-    <div class="table-wrapper">
-        <table id="priceTable">
-            <thead>
-                <tr>
-                    <th>Imagen</th>
-                    <th>Nombre</th>
-                    <th>Código Facturación</th>
-                    <th>Precio antes de IVA</th>
-                    <th>Ficha Técnica</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Products will be injected here -->
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 2rem;">Cargando productos...</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+    <!-- Primary Navigation -->
+    <nav class="home-nav">
+        <ul>
+            <li><a href="index.html">Catálogo</a></li>
+            <li><a href="view.html" class="active">Lista de Precios</a></li>
+        </ul>
+    </nav>
 
+    <main class="view-main">
+        <!-- Section Label -->
+        <div class="section-label-container">
+            <p class="hero-label">LISTA DE PRECIOS</p>
+            <div class="label-underline"></div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="controls-bar">
+            <div class="search-wrapper">
+                <i data-lucide="search"></i>
+                <input type="text" id="searchInput" placeholder="Buscar por nombre, código o descripción...">
+            </div>
+            <div class="adjustment-wrapper">
+                <span>Ajuste Global (%):</span>
+                <input type="number" id="globalAdjustment" value="0" step="1">
+            </div>
+            <div class="export-actions">
+                <button id="btnDownload" class="btn-tan">
+                    <i data-lucide="download"></i>
+                    Descargar PDF
+                </button>
+                <button id="btnDownloadNoPrices" class="btn-light-tan">
+                    PDF Sin Precios
+                </button>
+            </div>
+        </div>
+
+        <!-- Price Table -->
+        <div class="price-table-wrapper">
+            <table id="priceTable">
+                <thead>
+                    <tr>
+                        <th class="col-img">Imagen</th>
+                        <th class="col-name">Nombre</th>
+                        <th class="col-code">Facturación</th>
+                        <th class="col-price">Precio Unitario</th>
+                        <th class="col- ficha">Ficha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 5rem;">Cargando productos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Lucide Icons Script -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+    </script>
     <script type="module" src="view.js"></script>
 </body>
 

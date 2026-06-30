@@ -34,7 +34,12 @@ async function fetchProducts() {
                 precio: data.PrecioAntesIVA || 0,
                 ficha: data.FichaTecnica || '',
                 orden: Number(data.Orden ?? data.orden ?? 0),
-                estado: data.Estado || 'Disponible'
+                estado: data.Estado || 'Disponible',
+                material: data.Material || '',
+                ip: data.IP || '',
+                color: data.Color || '',
+                temp: data.Temp || '',
+                especificaciones: data.Especificaciones || ''
             });
         });
 
@@ -47,14 +52,13 @@ async function fetchProducts() {
         renderTable();
     } catch (error) {
         console.error("Error fetching products: ", error);
-        // Fallback for demo if no DB configured
         showEmptyState();
     }
 }
 
 function showEmptyState() {
     const tbody = document.querySelector('#priceTable tbody');
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">No se pudieron cargar los datos. Verifica la configuración de Firebase.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 5rem;">No se pudieron cargar los datos. Verifica la configuración de Firebase.</td></tr>`;
 }
 
 let currentFilter = '';
@@ -66,11 +70,8 @@ function renderTable(filter = currentFilter) {
     tbody.innerHTML = '';
 
     let items = [...allProducts];
-
-    // Filter by Status
     items = items.filter(item => item.estado !== 'No disponible');
 
-    // Filter by search text
     if (currentFilter) {
         const lowerFilter = currentFilter.toLowerCase();
         items = items.filter(item =>
@@ -80,7 +81,6 @@ function renderTable(filter = currentFilter) {
         );
     }
 
-    // Group by category
     const grouped = {};
     items.forEach(item => {
         const cat = item.cat;
@@ -88,7 +88,6 @@ function renderTable(filter = currentFilter) {
         grouped[cat].push(item);
     });
 
-    // Sort products within categories
     Object.keys(grouped).forEach(cat => {
         grouped[cat].sort((a, b) => {
             const ordA = Number(a.orden) || 0;
@@ -104,107 +103,90 @@ function renderTable(filter = currentFilter) {
     });
 
     if (items.length === 0 && allProducts.length > 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">No se encontraron resultados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 5rem;">No se encontraron resultados.</td></tr>`;
         return;
     }
 
     sortedCategories.forEach(cat => {
         const isCollapsed = collapsedCategories.has(cat);
 
-        // Category Header
         const catRow = document.createElement('tr');
-        catRow.className = `category-header ${isCollapsed ? 'collapsed' : ''}`;
-        catRow.style.cursor = 'pointer';
+        catRow.className = `category-row ${isCollapsed ? 'collapsed' : ''}`;
         catRow.innerHTML = `
             <td colspan="5">
-                <div class="category-header-content">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="toggle-icon">${isCollapsed ? '⊕' : '⊖'}</span>
-                        <span style="font-weight: bold;">${cat}</span>
+                <div class="category-header-main">
+                    <div class="cat-title-group" style="cursor: pointer;">
+                        <i data-lucide="${isCollapsed ? 'plus-circle' : 'minus-circle'}" class="cat-toggle-icon"></i>
+                        <span class="cat-name">${cat}</span>
                     </div>
-                    <button class="category-btn category-download-btn" title="Descargar esta categoría">
-                        📥 Descargar PDF
+                    <button class="cat-download-btn" title="Descargar Categoría">
+                        <i data-lucide="file-down"></i>
+                        <span>Descargar Categoría</span>
                     </button>
                 </div>
             </td>
         `;
 
-        // Category Download Logic
-        const downloadBtn = catRow.querySelector('.category-download-btn');
-        downloadBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevents collapse
-            generatePDF(true, cat);
-        });
-
-        // Toggle Logic with better robustness
-        catRow.addEventListener('click', (e) => {
-            if (collapsedCategories.has(cat)) {
-                collapsedCategories.delete(cat);
-            } else {
-                collapsedCategories.add(cat);
-            }
+        catRow.querySelector('.cat-title-group').onclick = () => {
+            if (collapsedCategories.has(cat)) collapsedCategories.delete(cat);
+            else collapsedCategories.add(cat);
             renderTable(currentFilter);
-        });
+        };
+
+        catRow.querySelector('.cat-download-btn').onclick = (e) => {
+            e.stopPropagation();
+            generatePDF(true, cat);
+        };
 
         tbody.appendChild(catRow);
 
         if (!isCollapsed) {
             grouped[cat].forEach(item => {
                 const tr = document.createElement('tr');
+                tr.className = 'product-row';
 
-                // Imagen
-                const tdImg = document.createElement('td');
-                tdImg.setAttribute('data-label', 'Imagen');
-                const img = document.createElement('img');
-                img.src = item.img || '';
-                img.className = 'product-img';
-                img.loading = 'lazy';
-                img.onerror = () => { img.style.display = 'none'; };
-                tdImg.appendChild(img);
-                tr.appendChild(tdImg);
+                // Technical description string
+                const techParts = [];
+                if (item.material) techParts.push(item.material);
+                if (item.color) techParts.push(item.color);
+                if (item.temp) techParts.push(item.temp);
+                if (item.ip) techParts.push(`IP${item.ip}`);
 
-                // Nombre
-                const tdName = document.createElement('td');
-                tdName.setAttribute('data-label', 'Nombre');
-                tdName.textContent = item.nombre;
-                tr.appendChild(tdName);
+                // Prioritize new specifications field if available
+                const description = item.especificaciones ? item.especificaciones.replace(/\n/g, '<br>') : techParts.join(' • ');
 
-                // Código
-                const tdCode = document.createElement('td');
-                tdCode.setAttribute('data-label', 'Código');
-                tdCode.textContent = item.codigo;
-                tr.appendChild(tdCode);
-
-                // Precio
-                const tdPrice = document.createElement('td');
-                tdPrice.setAttribute('data-label', 'Precio');
-                tdPrice.className = 'price-cell';
-
-                const adjustment = getGlobalAdjustment() / 100;
-                const priceVal = parseFloat(item.precio);
-                const adjustedPrice = priceVal * (1 + adjustment);
-
-                tdPrice.textContent = isNaN(priceVal) ? item.precio : "$" + Math.round(adjustedPrice).toLocaleString('es-CO');
-                tr.appendChild(tdPrice);
-
-                // Ficha
-                const tdFicha = document.createElement('td');
-                tdFicha.setAttribute('data-label', 'Ficha');
-                if (item.ficha) {
-                    const a = document.createElement('a');
-                    a.href = item.ficha;
-                    a.target = '_blank';
-                    a.className = 'btn-ficha';
-                    a.textContent = 'Ver Ficha';
-                    tdFicha.appendChild(a);
-                } else {
-                    tdFicha.textContent = '-';
-                }
-                tr.appendChild(tdFicha);
+                tr.innerHTML = `
+                    <td class="cell-img" data-label="Imagen">
+                        <div class="img-container">
+                            <img src="${item.img || ''}" alt="${item.nombre}" loading="lazy" onerror="this.style.display='none'">
+                        </div>
+                    </td>
+                    <td class="cell-name" data-label="Nombre">
+                        <div class="name-group">
+                            <span class="product-name">${item.nombre}</span>
+                            <span class="product-desc">${description}</span>
+                        </div>
+                    </td>
+                    <td class="cell-code" data-label="Facturación">${item.codigo}</td>
+                    <td class="cell-price" data-label="Precio Unitario">
+                        <div class="price-group">
+                            <span class="price-val">$${Math.round(item.precio * (1 + getGlobalAdjustment() / 100)).toLocaleString('es-CO')}</span>
+                            <span class="price-label">COP (Antes de IVA)</span>
+                        </div>
+                    </td>
+                    <td class="cell-ficha" data-label="Ficha">
+                        ${item.ficha ? `<a href="${item.ficha}" target="_blank" class="ficha-link"><i data-lucide="file-text"></i></a>` : '-'}
+                    </td>
+                `;
                 tbody.appendChild(tr);
             });
         }
     });
+
+    // Re-initialize Lucide Icons after table render
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
 }
 
 // Get global adjustment value
@@ -403,7 +385,15 @@ async function generatePDF(includePrices = true, categoryFilter = null) {
                         }
                         const x = data.cell.x + (data.cell.width - finalW) / 2;
                         const y = data.cell.y + (data.cell.height - finalH) / 2;
-                        doc.addImage(info.base64, 'JPEG', x, y, finalW, finalH);
+                        try {
+                            // Auto-detect format from base64 data URL
+                            let fmt = 'JPEG';
+                            if (info.base64.startsWith('data:image/png')) fmt = 'PNG';
+                            else if (info.base64.startsWith('data:image/webp')) fmt = 'WEBP';
+                            doc.addImage(info.base64, fmt, x, y, finalW, finalH);
+                        } catch (imgErr) {
+                            console.warn('Imagen omitida en PDF (formato no compatible):', imgErr.message);
+                        }
                     }
                     if (includePrices && data.section === 'body' && data.column.index === 3) {
                         doc.setFont("helvetica", "normal");
