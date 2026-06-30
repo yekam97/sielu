@@ -1183,13 +1183,13 @@ textarea {
 
 /* Product Header */
 .product-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 2.2rem;
-    font-weight: 500;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.7rem;
+    font-weight: 600;
     text-align: center;
     color: var(--sielu-text-dark);
     margin-bottom: 0.2rem;
-    line-height: 1.2;
+    line-height: 1.3;
 }
 
 .product-model {
