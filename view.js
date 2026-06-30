@@ -145,16 +145,6 @@ function renderTable(filter = currentFilter) {
                 const tr = document.createElement('tr');
                 tr.className = 'product-row';
 
-                // Technical description string
-                const techParts = [];
-                if (item.material) techParts.push(item.material);
-                if (item.color) techParts.push(item.color);
-                if (item.temp) techParts.push(item.temp);
-                if (item.ip) techParts.push(`IP${item.ip}`);
-
-                // Prioritize new specifications field if available
-                const description = item.especificaciones ? item.especificaciones.replace(/\n/g, '<br>') : techParts.join(' • ');
-
                 tr.innerHTML = `
                     <td class="cell-img" data-label="Imagen">
                         <div class="img-container">
@@ -164,7 +154,6 @@ function renderTable(filter = currentFilter) {
                     <td class="cell-name" data-label="Nombre">
                         <div class="name-group">
                             <span class="product-name">${item.nombre}</span>
-                            <span class="product-desc">${description}</span>
                         </div>
                     </td>
                     <td class="cell-code" data-label="Facturación">${item.codigo}</td>
