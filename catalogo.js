@@ -77,10 +77,10 @@ async function fetchProducts() {
 function renderCatalog() {
     const filter = document.getElementById('searchInput').value.toLowerCase();
     const container = document.getElementById('catalogContainer');
-    const nav = document.getElementById('catalogNav');
+    const nav = document.getElementById('categoryDropdownContent');
     
     container.innerHTML = '';
-    nav.innerHTML = '';
+    if (nav) nav.innerHTML = '';
 
     // Filter items based on search input
     let filteredItems = allProducts;
