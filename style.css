@@ -1285,4 +1285,74 @@ textarea {
     .drawing-container {
         justify-content: center;
     }
-}
+}
+
+/* ==========================================================================
+   PREMIUM HEADER (From screenshot)
+   ========================================================================== */
+
+.catalog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 10%;
+    background-color: var(--sielu-bg);
+    border-bottom: 1px solid #ECE7DB;
+    width: 100%;
+}
+
+.catalog-header .brand-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--sielu-text-dark);
+    text-decoration: none;
+    letter-spacing: -0.5px;
+    text-transform: lowercase;
+}
+
+.catalog-header .header-nav {
+    display: flex;
+    gap: 2rem;
+}
+
+.catalog-header .nav-link {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--sielu-text-muted);
+    text-decoration: none;
+    padding: 0.5rem 0;
+    transition: var(--transition-fast);
+}
+
+.catalog-header .nav-link:hover {
+    color: var(--sielu-text-dark);
+}
+
+.catalog-header .nav-link.active {
+    color: var(--sielu-text-dark);
+    border-bottom: 1px solid var(--sielu-text-dark);
+    padding-bottom: 2px;
+}
+
+.catalog-header .header-volume {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--sielu-text-muted);
+    letter-spacing: 1px;
+    border: 1px solid #ECE7DB;
+    padding: 0.5rem 1rem;
+    background-color: #FAF6ED;
+}
+
+@media (max-width: 768px) {
+    .catalog-header {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.5rem 5%;
+        text-align: center;
+    }
+}
+
