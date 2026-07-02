@@ -963,6 +963,10 @@ textarea {
 
 /* Responsive Table */
 @media (max-width: 992px) {
+    .view-main {
+        padding: 0 5%;
+    }
+
     .controls-bar {
         flex-direction: column;
         align-items: stretch;
@@ -1380,6 +1384,12 @@ textarea {
         gap: 1rem;
         padding: 1.5rem 5%;
         text-align: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .view-main {
+        padding: 0 3%;
     }
 }
 
