@@ -373,9 +373,9 @@ function renderFlipbook() {
             
             page.innerHTML = `
                 <div class="page-content" style="height: 100%; display: flex; flex-direction: row; box-sizing: border-box; overflow: hidden; width: 100%;">
-                    <!-- Left: Context Image -->
-                    <div style="flex: 1.1; height: 100%; position: relative; overflow: hidden; background-color: #EFECE6;">
-                        <img src="${item.imgContexto || item.img || ''}" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="${item.nombre}" onerror="this.style.display='none'">
+                    <!-- Left: Product image. Contain preserves every product's full silhouette. -->
+                    <div style="flex: 1.1; height: 100%; position: relative; display: flex; align-items: center; justify-content: center; padding: 2rem; box-sizing: border-box; background-color: #F6F4EF;">
+                        <img class="catalog-flip-image" src="${item.imgContexto || item.img || ''}" style="width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; mix-blend-mode: multiply;" alt="${item.nombre}" onerror="this.style.display='none'">
                     </div>
                     
                     <!-- Right: Product Details -->
