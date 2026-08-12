@@ -1402,3 +1402,190 @@ textarea {
     }
 }
 
+/* ===========================================================================
+   CATALOG CONFIGURATOR
+   ========================================================================== */
+.catalog-config-main {
+    max-width: 1240px;
+    margin: 2rem auto 5rem;
+    padding: 0 1.25rem;
+}
+
+.catalog-config-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.catalog-config-toolbar input {
+    margin-left: auto;
+    max-width: 360px;
+}
+
+.catalog-config-note {
+    color: var(--sielu-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 2.5rem;
+}
+
+.catalog-config-category {
+    margin-bottom: 3.5rem;
+}
+
+.catalog-config-category h2 {
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding-bottom: 0.8rem;
+    border-bottom: 2px solid var(--sielu-accent);
+    margin-bottom: 1rem;
+}
+
+.catalog-config-product {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 1.5rem 2rem;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid #e9e4da;
+}
+
+.catalog-config-identity {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+}
+
+.catalog-config-identity img {
+    width: 64px;
+    height: 64px;
+    flex: 0 0 64px;
+    object-fit: contain;
+    background: #f6f4ef;
+}
+
+.catalog-config-identity strong,
+.catalog-config-identity small {
+    display: block;
+}
+
+.catalog-config-identity strong {
+    font-size: 0.85rem;
+    line-height: 1.35;
+}
+
+.catalog-config-identity small {
+    color: var(--sielu-text-muted);
+    margin-top: 0.3rem;
+}
+
+.catalog-config-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.catalog-config-field:last-child {
+    grid-column: 1 / -1;
+}
+
+.catalog-config-field span {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+}
+
+.catalog-config-field input,
+.catalog-config-field textarea {
+    width: 100%;
+    border: 1px solid #ddd8cf;
+    border-radius: 3px;
+    background: #fffefa;
+    padding: 0.7rem 0.8rem;
+    font: inherit;
+}
+
+.catalog-config-field textarea {
+    resize: vertical;
+    line-height: 1.45;
+}
+
+.catalog-config-field input:focus,
+.catalog-config-field textarea:focus {
+    border-color: var(--sielu-accent);
+    outline: 2px solid rgba(219, 207, 172, 0.25);
+}
+
+.catalog-config-actions {
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.catalog-config-feedback {
+    color: var(--sielu-text-muted);
+    font-size: 0.85rem;
+}
+
+.catalog-config-login {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--sielu-bg);
+    z-index: 9999;
+}
+
+.catalog-config-login-card {
+    width: min(400px, 90%);
+    padding: 3rem;
+    text-align: center;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.catalog-config-login-card h2 {
+    margin-bottom: 1.5rem;
+    font-family: var(--font-serif);
+}
+
+.catalog-config-login-card input,
+.catalog-config-login-card button {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.catalog-config-login-card #errorMsg {
+    display: none;
+    color: #c62828;
+}
+
+@media (max-width: 800px) {
+    .catalog-config-toolbar,
+    .catalog-config-product {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .catalog-config-toolbar input {
+        margin-left: 0;
+        max-width: none;
+    }
+
+    .catalog-config-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .catalog-config-field:last-child,
+    .catalog-config-actions {
+        grid-column: auto;
+    }
+}
+

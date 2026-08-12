@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sielu - Configurador de Catálogo</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="loginModal" class="catalog-config-login">
+        <div class="catalog-config-login-card">
+            <h2>Configurador de Catálogo</h2>
+            <input type="password" id="passwordInput" placeholder="Contraseña de acceso">
+            <button id="loginBtn" class="btn-primary">Ingresar</button>
+            <p id="errorMsg">Contraseña incorrecta.</p>
+        </div>
+    </div>
+
+    <header>
+        <p class="title-pre">Configurador de Catálogo</p>
+        <img src="/logo.png" alt="Sielu Logo" class="logo-main">
+    </header>
+
+    <main class="catalog-config-main">
+        <div class="catalog-config-toolbar">
+            <a href="index.html" class="btn-primary" style="background: #eee;">Volver al Inicio</a>
+            <a href="admin.html" class="btn-primary" style="background: #eee;">Administración de Productos</a>
+            <input type="search" id="searchInput" placeholder="Buscar por nombre, código o categoría">
+        </div>
+        <p class="catalog-config-note">Edita únicamente la información usada en el catálogo visual. Las categorías y el orden se conservan como en Administración.</p>
+        <div id="catalogConfigurator" class="catalog-config-list">
+            <p class="loading-catalog">Cargando productos...</p>
+        </div>
+    </main>
+
+    <script type="module" src="configurador-catalogo.js"></script>
+</body>
+
+</html>

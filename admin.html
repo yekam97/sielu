@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sielu Admin - Gestión de Precios</title>
+    <title>Sielu Admin - Gestión de Productos</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -27,9 +27,14 @@
     </div>
 
     <header>
-        <p class="title-pre">Panel de Administración</p>
+        <p class="title-pre">Administración de Productos</p>
         <img src="/logo.png" alt="Sielu Logo" class="logo-main">
     </header>
+
+    <div class="controls-container">
+        <a href="index.html" class="btn-primary" style="background: #eee;">Volver al Inicio</a>
+        <a href="configurador-catalogo.html" class="btn-primary">Configurador de Catálogo</a>
+    </div>
 
     <div class="admin-container">
         <h2 style="margin-bottom: 1.5rem; font-family: var(--font-serif);">Agregar / Editar Producto</h2>
@@ -61,24 +66,6 @@
                     <label for="img">URL de Imagen Principal</label>
                     <input type="text" id="img" placeholder="https://...">
                 </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group">
-                    <label for="dibujo">URL Dibujo Técnico</label>
-                    <input type="text" id="dibujo" placeholder="https://...">
-                </div>
-                <div class="form-group">
-                    <label for="imgContexto">URL Imagen en Contexto</label>
-                    <input type="text" id="imgContexto" placeholder="https://...">
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="especificaciones">Especificaciones Técnicas</label>
-                <textarea id="especificaciones" rows="10"
-                    placeholder="TIPO LÁMPARA: Spot&#10;MATERIAL: Aluminio&#10;POTENCIA: 3W Led (COB)&#10;FLUJO LUMINOSO: 46 LM/W&#10;TEMPERATURA DE COLOR: 3000K&#10;IRC: 80&#10;ÁNGULO DE APERTURA: 24°&#10;GRADO DE PROTECCIÓN (IP): 20&#10;DIMENSIONES: 150.0mm x 30.0mm&#10;ACABADO: Negro Mate&#10;GARANTÍA: 2 años"
-                    style="width:100%; padding:0.8rem; border:1px solid #ddd; border-radius:4px; font-family: var(--font-sans); font-size:0.9rem; resize:vertical;"></textarea>
             </div>
 
             <div class="form-group">

@@ -321,9 +321,6 @@ window.editItem = (id) => {
     document.getElementById('price').value = item.precio;
     document.getElementById('img').value = item.img;
     document.getElementById('sheet').value = item.ficha;
-    document.getElementById('especificaciones').value = item.especificaciones || '';
-    document.getElementById('imgContexto').value = item.imgContexto || '';
-    document.getElementById('dibujo').value = item.dibujo || '';
 
     document.getElementById('submitBtn').textContent = 'Guardar cambios';
     document.getElementById('cancelBtn').style.display = 'block';
@@ -357,9 +354,6 @@ form.addEventListener('submit', async e => {
         PrecioAntesIVA: parseFloat(document.getElementById('price').value),
         Imagen: document.getElementById('img').value.trim(),
         FichaTecnica: document.getElementById('sheet').value.trim(),
-        Especificaciones: document.getElementById('especificaciones').value.trim(),
-        ImgContexto: document.getElementById('imgContexto').value.trim(),
-        Dibujo: document.getElementById('dibujo').value.trim(),
         fechaUpdate: new Date()
     };
 
