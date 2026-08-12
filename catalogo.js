@@ -35,6 +35,31 @@ function parseSpecifications(specsText, item) {
     return specs;
 }
 
+// Return an inline SVG icon matching a spec label's meaning (falls back to a generic dot)
+function getSpecIcon(label) {
+    const key = (label || '').toUpperCase();
+    const stroke = 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';
+    const icons = {
+        lamp: `<svg viewBox="0 0 24 24" ${stroke}><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.45 1.1 1.2 1.1 2.2h5c0-1 .5-1.75 1.1-2.2A6 6 0 0 0 12 3Z"/></svg>`,
+        material: `<svg viewBox="0 0 24 24" ${stroke}><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`,
+        ip: `<svg viewBox="0 0 24 24" ${stroke}><path d="M12 3 4 6v6c0 4.4 3.4 8.5 8 9 4.6-.5 8-4.6 8-9V6l-8-3Z"/></svg>`,
+        color: `<svg viewBox="0 0 24 24" ${stroke}><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4c1.7 0 3.1-1.4 3.1-3.1C20.5 6.6 16.7 3 12 3Z"/><circle cx="7.5" cy="10.5" r=".8" fill="currentColor" stroke="none"/><circle cx="11" cy="7" r=".8" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8" r=".8" fill="currentColor" stroke="none"/></svg>`,
+        temp: `<svg viewBox="0 0 24 24" ${stroke}><path d="M12 14.5V5a2 2 0 1 0-4 0v9.5a4 4 0 1 0 4 0Z"/></svg>`,
+        warranty: `<svg viewBox="0 0 24 24" ${stroke}><circle cx="12" cy="9" r="5"/><path d="m8.2 13.5-1.7 6.8 5-2.6 5 2.6-1.7-6.8"/></svg>`,
+        dimension: `<svg viewBox="0 0 24 24" ${stroke}><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 8h4M20 16h-4M12 3v4M12 20v-4"/></svg>`,
+        default: `<svg viewBox="0 0 24 24" ${stroke}><circle cx="12" cy="12" r="4"/></svg>`
+    };
+
+    if (/(LAMP|LÁMP|LUZ|LED)/.test(key)) return icons.lamp;
+    if (/MATERIAL/.test(key)) return icons.material;
+    if (/(IP|PROTECC)/.test(key)) return icons.ip;
+    if (/TEMP/.test(key)) return icons.temp;
+    if (/COLOR/.test(key)) return icons.color;
+    if (/GARANT/.test(key)) return icons.warranty;
+    if (/(DIMENS|MEDID|TAMA)/.test(key)) return icons.dimension;
+    return icons.default;
+}
+
 async function fetchProducts() {
     try {
         const q = query(collection(db, "productos_sielu"));
@@ -210,16 +235,35 @@ function renderCatalog() {
             const cardRight = document.createElement('div');
             cardRight.className = 'card-right';
 
-            // Title and model (Poppins)
+            // Header row: product thumbnail + title/model (Poppins)
+            const headerRow = document.createElement('div');
+            headerRow.className = 'card-header-row';
+
+            const thumbWrap = document.createElement('div');
+            thumbWrap.className = 'product-thumb';
+            const thumbImg = document.createElement('img');
+            thumbImg.src = item.img || item.imgContexto || '';
+            thumbImg.alt = item.nombre;
+            thumbImg.loading = 'lazy';
+            thumbImg.onerror = () => { thumbWrap.style.display = 'none'; };
+            thumbWrap.appendChild(thumbImg);
+            headerRow.appendChild(thumbWrap);
+
+            const heading = document.createElement('div');
+            heading.className = 'product-heading';
+
             const productTitle = document.createElement('h3');
             productTitle.className = 'product-title';
             productTitle.textContent = item.nombre;
-            cardRight.appendChild(productTitle);
+            heading.appendChild(productTitle);
 
             const productModel = document.createElement('p');
             productModel.className = 'product-model';
-            productModel.textContent = item.codigo ? `MODEL: ${item.codigo}` : '';
-            cardRight.appendChild(productModel);
+            productModel.textContent = item.codigo || '';
+            heading.appendChild(productModel);
+
+            headerRow.appendChild(heading);
+            cardRight.appendChild(headerRow);
 
             // Specifications section
             const specsSection = document.createElement('div');
@@ -238,6 +282,7 @@ function renderCatalog() {
                     const itemEl = document.createElement('div');
                     itemEl.className = 'spec-item';
                     itemEl.innerHTML = `
+                        <span class="spec-icon">${getSpecIcon(spec.label)}</span>
                         <span class="spec-label">${spec.label}</span>
                         <span class="spec-dots"></span>
                         <span class="spec-value">${spec.value}</span>
@@ -275,8 +320,14 @@ function renderCatalog() {
                 drawingImg.loading = 'lazy';
                 drawingImg.onerror = () => { drawingSection.style.display = 'none'; };
                 drawingContainer.appendChild(drawingImg);
-                
+
                 drawingSection.appendChild(drawingContainer);
+
+                const drawingNote = document.createElement('p');
+                drawingNote.className = 'drawing-note';
+                drawingNote.textContent = '*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*';
+                drawingSection.appendChild(drawingNote);
+
                 cardRight.appendChild(drawingSection);
             }
 
@@ -373,29 +424,37 @@ function renderFlipbook() {
             
             page.innerHTML = `
                 <div class="page-content" style="height: 100%; display: flex; flex-direction: row; box-sizing: border-box; overflow: hidden; width: 100%;">
-                    <!-- Left: Product image. Contain preserves every product's full silhouette. -->
-                    <div style="flex: 1.1; height: 100%; position: relative; display: flex; align-items: center; justify-content: center; padding: 2rem; box-sizing: border-box; background-color: #F6F4EF;">
-                        <img class="catalog-flip-image" src="${item.imgContexto || item.img || ''}" style="width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; mix-blend-mode: multiply;" alt="${item.nombre}" onerror="this.style.display='none'">
+                    <!-- Left: Full-bleed context photo -->
+                    <div style="flex: 1.1; height: 100%; position: relative; overflow: hidden;">
+                        <img class="catalog-flip-image" src="${item.imgContexto || item.img || ''}" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" alt="${item.nombre}" onerror="this.style.display='none'">
                     </div>
-                    
+
                     <!-- Right: Product Details -->
                     <div style="flex: 1.2; padding: 2.5rem; display: flex; flex-direction: column; justify-content: flex-start; box-sizing: border-box; height: 100%; overflow: hidden;">
-                        
+
                         <!-- Category name -->
                         <div style="text-align: left; margin-bottom: 0.3rem;">
                             <span style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
                         </div>
 
-                        <!-- Title & Model -->
-                        <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.7rem; font-weight: 600; text-align: left; color: var(--sielu-text-dark); margin: 0 0 0.2rem; line-height: 1.3; text-transform: uppercase;">${item.nombre}</h3>
-                        <p style="font-family: var(--font-sans); font-size: 0.85rem; font-weight: 500; color: var(--sielu-text-muted); text-align: left; letter-spacing: 1px; margin: 0 0 1.5rem; text-transform: uppercase;">MODEL: ${item.codigo}</p>
-                        
+                        <!-- Thumbnail + Title & Model -->
+                        <div class="card-header-row" style="margin-bottom: 1.2rem;">
+                            <div class="product-thumb" style="width: 70px; height: 70px;">
+                                <img src="${item.img || item.imgContexto || ''}" alt="${item.nombre}" onerror="this.parentNode.style.display='none'">
+                            </div>
+                            <div class="product-heading" style="gap: 0.15rem;">
+                                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 600; text-align: left; color: var(--sielu-text-dark); margin: 0; line-height: 1.25; text-transform: uppercase;">${item.nombre}</h3>
+                                <p style="font-family: var(--font-sans); font-size: 0.8rem; font-weight: 500; color: var(--sielu-text-muted); text-align: left; letter-spacing: 1px; margin: 0; text-transform: uppercase;">${item.codigo}</p>
+                            </div>
+                        </div>
+
                         <!-- Specs -->
                         <div class="specs-section" style="width: 100%; margin-bottom: 1.5rem;">
-                            <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 700; color: var(--sielu-text-dark); letter-spacing: 1.5px; margin-bottom: 0.6rem; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 2px;">ESPECIFICACIONES TÉCNICAS</h4>
+                            <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 1.5px; margin-bottom: 0.6rem; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 2px;">ESPECIFICACIONES TÉCNICAS</h4>
                             <div class="specs-list" style="display: flex; flex-direction: column; gap: 0.4rem;">
                                 ${specs.length > 0 ? specs.slice(0, 6).map(spec => `
-                                    <div class="spec-item" style="display: flex; align-items: baseline; justify-content: space-between; width: 100%;">
+                                    <div class="spec-item" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.5rem;">
+                                        <span class="spec-icon" style="width: 15px; height: 15px; flex-shrink: 0; color: var(--sielu-gold);">${getSpecIcon(spec.label)}</span>
                                         <span class="spec-label" style="font-family: var(--font-sans); font-weight: 600; font-size: 0.8rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
                                         <span class="spec-dots" style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 8px; align-self: flex-end; margin-bottom: 3px;"></span>
                                         <span class="spec-value" style="font-family: var(--font-sans); font-size: 0.85rem; color: var(--sielu-text-dark); text-align: right; word-break: break-word;">${spec.value}</span>
@@ -405,14 +464,15 @@ function renderFlipbook() {
                                 `}
                             </div>
                         </div>
-                        
+
                         <!-- Drawing -->
                         ${item.dibujo ? `
                         <div class="drawing-section" style="width: 100%; margin-top: auto;">
-                            <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 700; color: var(--sielu-text-dark); letter-spacing: 1.5px; margin-bottom: 0.5rem; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
+                            <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 1.5px; margin-bottom: 0.5rem; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
                             <div class="drawing-container" style="display: flex; justify-content: flex-end; align-items: center; width: 100%; margin-top: 0.2rem; height: 95px;">
                                 <img class="drawing-img" src="${item.dibujo}" style="max-height: 90px; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
                             </div>
+                            <p style="font-family: var(--font-sans); font-size: 0.62rem; font-style: italic; color: var(--sielu-text-muted); text-align: right; margin-top: 0.3rem;">*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*</p>
                         </div>
                         ` : ''}
                     </div>

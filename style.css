@@ -10,6 +10,8 @@
     /* Deep charcoal for readability */
     --sielu-text-muted: #555555;
     --sielu-white: #FFFFFF;
+    --sielu-gold: #A8874F;
+    /* Deeper gold for spec headings/icons (readable on cream) */
 
     /* Typography */
     --font-serif: "Poppins", sans-serif;
@@ -1170,20 +1172,16 @@ textarea {
     flex: 1.1;
     min-height: 430px;
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: clamp(1.25rem, 3vw, 2.5rem);
+    overflow: hidden;
     background-color: #f6f4ef;
 }
 
 .context-img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center;
     display: block;
-    mix-blend-mode: multiply;
 }
 
 .card-right {
@@ -1194,6 +1192,41 @@ textarea {
     justify-content: flex-start;
 }
 
+/* Header row: small product thumbnail + title/model */
+.card-header-row {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    margin-bottom: 1.75rem;
+}
+
+.product-thumb {
+    flex-shrink: 0;
+    width: 88px;
+    height: 88px;
+    background-color: #f6f4ef;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    box-sizing: border-box;
+}
+
+.product-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+}
+
+.product-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
 /* Product Header */
 .product-title {
     font-family: 'Poppins', sans-serif;
@@ -1201,7 +1234,7 @@ textarea {
     font-weight: 600;
     text-align: left;
     color: var(--sielu-text-dark);
-    margin-bottom: 0.2rem;
+    margin: 0;
     line-height: 1.3;
 }
 
@@ -1212,7 +1245,7 @@ textarea {
     color: var(--sielu-text-muted);
     text-align: left;
     letter-spacing: 0.08em;
-    margin-bottom: 1.75rem;
+    margin: 0;
     text-transform: uppercase;
 }
 
@@ -1227,7 +1260,7 @@ textarea {
     font-family: var(--font-sans);
     font-size: 0.72rem;
     font-weight: 700;
-    color: var(--sielu-text-dark);
+    color: var(--sielu-gold);
     letter-spacing: 0.12em;
     margin-bottom: 0.85rem;
     text-transform: uppercase;
@@ -1242,11 +1275,28 @@ textarea {
 
 .spec-item {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     width: 100%;
     padding: 0.55rem 0;
     border-bottom: 1px solid #ece8df;
+    gap: 0.6rem;
+}
+
+.spec-icon {
+    flex-shrink: 0;
+    width: 17px;
+    height: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sielu-gold);
+}
+
+.spec-icon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 .spec-label {
@@ -1277,10 +1327,15 @@ textarea {
 /* Technical Drawing Section */
 .drawing-container {
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
     width: 100%;
     margin-top: 0.5rem;
+    background-color: #faf8f3;
+    border: 1px solid #ece7db;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    box-sizing: border-box;
 }
 
 .drawing-img {
@@ -1289,6 +1344,15 @@ textarea {
     object-fit: contain;
     mix-blend-mode: multiply; /* Blends drawing background into the cream page background */
     filter: contrast(1.1);
+}
+
+.drawing-note {
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    font-style: italic;
+    color: var(--sielu-text-muted);
+    text-align: right;
+    margin-top: 0.5rem;
 }
 
 /* RESPONSIVE DESIGN */
@@ -1308,18 +1372,25 @@ textarea {
     }
 
     .card-left {
+        flex: none;
         width: 100%;
         height: 360px;
         min-height: 0;
     }
 
     .card-right {
+        flex: none;
         width: 100%;
         padding: 2rem 1.5rem;
     }
 
     .product-title {
         font-size: 1.45rem;
+    }
+
+    .product-thumb {
+        width: 70px;
+        height: 70px;
     }
 
     .drawing-container {
