@@ -395,7 +395,7 @@ textarea {
 
 .book-viewport {
     height: 80vh;
-    min-height: 550px;
+    min-height: 650px;
     padding: 1rem;
 }
 
@@ -1201,6 +1201,20 @@ textarea {
     box-sizing: border-box;
     border-radius: 14px;
     min-height: 0;
+}
+
+/* Two products share one card: each gets its own block, separated by a divider */
+.card-product-block:first-child {
+    padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.card-product-block:last-child {
+    padding-top: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.card-pair-divider {
+    height: 1px;
+    background-color: #ebe6dc;
 }
 
 .card-title-block {

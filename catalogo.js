@@ -252,130 +252,155 @@ function renderCatalog() {
         const grid = document.createElement('div');
         grid.className = 'catalog-cards-grid';
 
-        // Render Product Cards (merged groups collapse into one card)
+        // Render Product Cards: two products (or groups) share one card, one on top / one below
         const cardItems = mergeGroupedItems(grouped[cat]);
-        cardItems.forEach(cardData => {
-            const representative = cardData.members[0];
-            const specs = parseSpecifications(representative.especificaciones, representative);
-            const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
+        for (let i = 0; i < cardItems.length; i += 2) {
+            const pair = cardItems.slice(i, i + 2);
 
             const card = document.createElement('div');
             card.className = 'catalog-card catalog-card--flat';
 
-            // Title block (context photo removed for now)
-            const titleBlock = document.createElement('div');
-            titleBlock.className = 'card-title-block';
-
-            const productTitle = document.createElement('h3');
-            productTitle.className = 'product-title';
-            productTitle.textContent = cardData.nombre;
-            titleBlock.appendChild(productTitle);
-
-            const productModel = document.createElement('p');
-            productModel.className = 'product-model';
-            productModel.textContent = codigo;
-            titleBlock.appendChild(productModel);
-
-            card.appendChild(titleBlock);
-
-            // Columns: product photo(s), specs, dimensions
-            const columns = document.createElement('div');
-            columns.className = 'card-columns';
-
-            const photosCol = document.createElement('div');
-            photosCol.className = 'card-photos';
-            if (cardData.isGroup) photosCol.classList.add('is-group');
-
-            const thumbGroup = document.createElement('div');
-            thumbGroup.className = 'product-thumb-group';
-            cardData.members.forEach(member => {
-                const thumbWrap = document.createElement('div');
-                thumbWrap.className = 'product-thumb';
-                const thumbImg = document.createElement('img');
-                thumbImg.src = member.img || member.imgContexto || '';
-                thumbImg.alt = member.nombre;
-                thumbImg.loading = 'lazy';
-                thumbImg.onerror = () => { thumbWrap.style.display = 'none'; };
-                thumbWrap.appendChild(thumbImg);
-                thumbGroup.appendChild(thumbWrap);
-            });
-            photosCol.appendChild(thumbGroup);
-            columns.appendChild(photosCol);
-
-            // Specifications section
-            const specsSection = document.createElement('div');
-            specsSection.className = 'specs-section';
-
-            const specsTitle = document.createElement('h4');
-            specsTitle.className = 'section-title';
-            specsTitle.textContent = 'ESPECIFICACIONES TÉCNICAS';
-            specsSection.appendChild(specsTitle);
-
-            const specsList = document.createElement('div');
-            specsList.className = 'specs-list';
-
-            if (specs.length > 0) {
-                specs.forEach(spec => {
-                    const itemEl = document.createElement('div');
-                    itemEl.className = 'spec-item';
-                    itemEl.innerHTML = `
-                        <span class="spec-icon">${getSpecIcon(spec.label)}</span>
-                        <span class="spec-label">${spec.label}</span>
-                        <span class="spec-dots"></span>
-                        <span class="spec-value">${spec.value}</span>
-                    `;
-                    specsList.appendChild(itemEl);
-                });
-            } else {
-                const itemEl = document.createElement('div');
-                itemEl.className = 'spec-item';
-                itemEl.innerHTML = `
-                    <span class="spec-label" style="font-style: italic; color: #888;">Sin especificaciones disponibles</span>
-                `;
-                specsList.appendChild(itemEl);
-            }
-            specsSection.appendChild(specsList);
-            columns.appendChild(specsSection);
-
-            // Technical Drawing section
-            if (representative.dibujo) {
-                const drawingSection = document.createElement('div');
-                drawingSection.className = 'drawing-section';
-
-                const drawingTitle = document.createElement('h4');
-                drawingTitle.className = 'section-title';
-                drawingTitle.textContent = 'GRÁFICO DE DIMENSIONES';
-                drawingSection.appendChild(drawingTitle);
-
-                const drawingContainer = document.createElement('div');
-                drawingContainer.className = 'drawing-container';
-
-                const drawingImg = document.createElement('img');
-                drawingImg.className = 'drawing-img';
-                drawingImg.src = representative.dibujo;
-                drawingImg.alt = `Dimensiones de ${cardData.nombre}`;
-                drawingImg.loading = 'lazy';
-                drawingImg.onerror = () => { drawingSection.style.display = 'none'; };
-                drawingContainer.appendChild(drawingImg);
-
-                drawingSection.appendChild(drawingContainer);
-
-                const drawingNote = document.createElement('p');
-                drawingNote.className = 'drawing-note';
-                drawingNote.textContent = '*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*';
-                drawingSection.appendChild(drawingNote);
-
-                columns.appendChild(drawingSection);
+            card.appendChild(buildListProductBlock(pair[0]));
+            if (pair[1]) {
+                const divider = document.createElement('div');
+                divider.className = 'card-pair-divider';
+                card.appendChild(divider);
+                card.appendChild(buildListProductBlock(pair[1]));
             }
 
-            card.appendChild(columns);
             grid.appendChild(card);
-        });
+        }
 
         section.appendChild(grid);
         container.appendChild(section);
     });
 }
+
+// Build one product's block (title + photo/specs/dimensions columns) for the list view.
+// Two of these share a single .catalog-card--flat, stacked with a divider between them.
+function buildListProductBlock(cardData) {
+    const representative = cardData.members[0];
+    const specs = parseSpecifications(representative.especificaciones, representative);
+    const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
+
+    const block = document.createElement('div');
+    block.className = 'card-product-block';
+
+    // Title block
+    const titleBlock = document.createElement('div');
+    titleBlock.className = 'card-title-block';
+
+    const productTitle = document.createElement('h3');
+    productTitle.className = 'product-title';
+    productTitle.textContent = cardData.nombre;
+    titleBlock.appendChild(productTitle);
+
+    const productModel = document.createElement('p');
+    productModel.className = 'product-model';
+    productModel.textContent = codigo;
+    titleBlock.appendChild(productModel);
+
+    block.appendChild(titleBlock);
+
+    // Columns: product photo(s), specs, dimensions
+    const columns = document.createElement('div');
+    columns.className = 'card-columns';
+
+    const photosCol = document.createElement('div');
+    photosCol.className = 'card-photos';
+    if (cardData.isGroup) photosCol.classList.add('is-group');
+
+    const thumbGroup = document.createElement('div');
+    thumbGroup.className = 'product-thumb-group';
+    cardData.members.forEach(member => {
+        const thumbWrap = document.createElement('div');
+        thumbWrap.className = 'product-thumb';
+        const thumbImg = document.createElement('img');
+        thumbImg.src = member.img || member.imgContexto || '';
+        thumbImg.alt = member.nombre;
+        thumbImg.loading = 'lazy';
+        thumbImg.onerror = () => { thumbWrap.style.display = 'none'; };
+        thumbWrap.appendChild(thumbImg);
+        thumbGroup.appendChild(thumbWrap);
+    });
+    photosCol.appendChild(thumbGroup);
+    columns.appendChild(photosCol);
+
+    // Specifications section
+    const specsSection = document.createElement('div');
+    specsSection.className = 'specs-section';
+
+    const specsTitle = document.createElement('h4');
+    specsTitle.className = 'section-title';
+    specsTitle.textContent = 'ESPECIFICACIONES TÉCNICAS';
+    specsSection.appendChild(specsTitle);
+
+    const specsList = document.createElement('div');
+    specsList.className = 'specs-list';
+
+    if (specs.length > 0) {
+        specs.forEach(spec => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'spec-item';
+            itemEl.innerHTML = `
+                <span class="spec-icon">${getSpecIcon(spec.label)}</span>
+                <span class="spec-label">${spec.label}</span>
+                <span class="spec-dots"></span>
+                <span class="spec-value">${spec.value}</span>
+            `;
+            specsList.appendChild(itemEl);
+        });
+    } else {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'spec-item';
+        itemEl.innerHTML = `
+            <span class="spec-label" style="font-style: italic; color: #888;">Sin especificaciones disponibles</span>
+        `;
+        specsList.appendChild(itemEl);
+    }
+    specsSection.appendChild(specsList);
+    columns.appendChild(specsSection);
+
+    // Technical Drawing section
+    if (representative.dibujo) {
+        const drawingSection = document.createElement('div');
+        drawingSection.className = 'drawing-section';
+
+        const drawingTitle = document.createElement('h4');
+        drawingTitle.className = 'section-title';
+        drawingTitle.textContent = 'GRÁFICO DE DIMENSIONES';
+        drawingSection.appendChild(drawingTitle);
+
+        const drawingContainer = document.createElement('div');
+        drawingContainer.className = 'drawing-container';
+
+        const drawingImg = document.createElement('img');
+        drawingImg.className = 'drawing-img';
+        drawingImg.src = representative.dibujo;
+        drawingImg.alt = `Dimensiones de ${cardData.nombre}`;
+        drawingImg.loading = 'lazy';
+        drawingImg.onerror = () => { drawingSection.style.display = 'none'; };
+        drawingContainer.appendChild(drawingImg);
+
+        drawingSection.appendChild(drawingContainer);
+
+        const drawingNote = document.createElement('p');
+        drawingNote.className = 'drawing-note';
+        drawingNote.textContent = '*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*';
+        drawingSection.appendChild(drawingNote);
+
+        columns.appendChild(drawingSection);
+    }
+
+    block.appendChild(columns);
+    return block;
+}
+
+// Flipbook page proportions: a horizontal ("landscape") letter sheet, 11x8.5in, instead of the
+// previous wider 1050x560 ratio.
+const FLIP_PAGE_RATIO = 11 / 8.5;
+const FLIP_PAGE_W = 1000;
+const FLIP_PAGE_H = Math.round(FLIP_PAGE_W / FLIP_PAGE_RATIO);
 
 // Build the compact product block used inside a flipbook page (two per page: top/bottom half).
 // PageFlip scales the physical page size dynamically depending on viewport width (observed as low
@@ -448,11 +473,11 @@ function renderFlipbook() {
 
     const filteredItems = getFilteredItems();
 
-    // 1. Front Cover Page (Landscape 1050x560)
+    // 1. Front Cover Page (Landscape, proportional to a horizontal letter page)
     const coverPage = document.createElement('div');
     coverPage.className = 'page -cover';
-    coverPage.style.width = '1050px';
-    coverPage.style.height = '560px';
+    coverPage.style.width = `${FLIP_PAGE_W}px`;
+    coverPage.style.height = `${FLIP_PAGE_H}px`;
     coverPage.style.padding = '0';
     coverPage.innerHTML = `
         <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
@@ -467,8 +492,8 @@ function renderFlipbook() {
     if (filteredItems.length === 0) {
         const noResultsPage = document.createElement('div');
         noResultsPage.className = 'page';
-        noResultsPage.style.width = '1050px';
-        noResultsPage.style.height = '560px';
+        noResultsPage.style.width = `${FLIP_PAGE_W}px`;
+        noResultsPage.style.height = `${FLIP_PAGE_H}px`;
         noResultsPage.innerHTML = `
             <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; display: flex;">
                 <p style="font-family: var(--font-sans); font-size: 1.1rem; color: var(--sielu-text-muted);">No se encontraron productos para esta búsqueda.</p>
@@ -483,8 +508,8 @@ function renderFlipbook() {
     // 2. Index Page (Landscape)
     const indexPage = document.createElement('div');
     indexPage.className = 'page';
-    indexPage.style.width = '1050px';
-    indexPage.style.height = '560px';
+    indexPage.style.width = `${FLIP_PAGE_W}px`;
+    indexPage.style.height = `${FLIP_PAGE_H}px`;
     
     let indexHtml = `
         <div class="page-content" style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; box-sizing: border-box;">
@@ -518,8 +543,8 @@ function renderFlipbook() {
 
             const page = document.createElement('div');
             page.className = 'page';
-            page.style.width = '1050px';
-            page.style.height = '560px';
+            page.style.width = `${FLIP_PAGE_W}px`;
+            page.style.height = `${FLIP_PAGE_H}px`;
             page.style.padding = '0';
 
             page.innerHTML = `
@@ -537,8 +562,8 @@ function renderFlipbook() {
     // 4. Back Cover Page (Landscape)
     const backCoverPage = document.createElement('div');
     backCoverPage.className = 'page -cover';
-    backCoverPage.style.width = '1050px';
-    backCoverPage.style.height = '560px';
+    backCoverPage.style.width = `${FLIP_PAGE_W}px`;
+    backCoverPage.style.height = `${FLIP_PAGE_H}px`;
     backCoverPage.style.padding = '0';
     backCoverPage.innerHTML = `
         <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
@@ -561,13 +586,13 @@ function initPageFlip() {
     const pages = container.querySelectorAll('.page');
     
     pageFlipInstance = new PageFlip(container, {
-        width: 1050, // base page width (landscape)
-        height: 560, // base page height (landscape)
+        width: FLIP_PAGE_W, // base page width (horizontal-letter-proportioned landscape)
+        height: FLIP_PAGE_H, // base page height
         size: "stretch",
         minWidth: 500,
         maxWidth: 1100,
-        minHeight: 250,
-        maxHeight: 595,
+        minHeight: Math.round(500 / FLIP_PAGE_RATIO),
+        maxHeight: Math.round(1100 / FLIP_PAGE_RATIO),
         maxShadowOpacity: 0.3,
         showCover: false, // Single landscape page mode, no double cover
         mode: "portrait", // Forces single-page view in PageFlip
