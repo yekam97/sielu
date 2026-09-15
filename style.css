@@ -1200,6 +1200,13 @@ textarea {
     margin-bottom: 1.75rem;
 }
 
+.product-thumb-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
 .product-thumb {
     flex-shrink: 0;
     width: 88px;
@@ -1211,6 +1218,13 @@ textarea {
     justify-content: center;
     padding: 0.5rem;
     box-sizing: border-box;
+}
+
+/* Merged products (2-3 photos in one card) use a smaller thumbnail so the row still fits */
+.card-header-row.is-group .product-thumb {
+    width: 62px;
+    height: 62px;
+    padding: 0.4rem;
 }
 
 .product-thumb img {
@@ -1393,6 +1407,11 @@ textarea {
         height: 70px;
     }
 
+    .card-header-row.is-group .product-thumb {
+        width: 50px;
+        height: 50px;
+    }
+
     .drawing-container {
         justify-content: center;
     }
@@ -1528,12 +1547,97 @@ textarea {
     align-items: center;
 }
 
-.catalog-config-identity img {
+.catalog-config-thumb-wrap {
+    position: relative;
+    flex: 0 0 64px;
+}
+
+.catalog-config-thumb-wrap img {
     width: 64px;
     height: 64px;
-    flex: 0 0 64px;
+    display: block;
     object-fit: contain;
     background: #f6f4ef;
+}
+
+.catalog-config-select {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--sielu-gold);
+}
+
+.catalog-config-remove-member {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: #c62828;
+    color: #fff;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Group cards: row of member thumbnails with codes + ungroup action */
+.catalog-config-product--group {
+    background: #fbf9f4;
+}
+
+.catalog-config-group-members {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1.25rem;
+}
+
+.catalog-config-group-member {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    text-align: center;
+}
+
+.catalog-config-group-member small {
+    color: var(--sielu-text-muted);
+    font-size: 0.75rem;
+    max-width: 90px;
+}
+
+.catalog-config-ungroup-btn {
+    margin-left: auto;
+    align-self: center;
+    background: none;
+    border: 1px solid #ddd8cf;
+    border-radius: 50px;
+    padding: 0.4rem 1rem;
+    font-size: 0.78rem;
+    color: var(--sielu-text-muted);
+    cursor: pointer;
+}
+
+.catalog-config-ungroup-btn:hover {
+    border-color: #c62828;
+    color: #c62828;
+}
+
+.catalog-config-group-note {
+    grid-column: 1 / -1;
+    color: var(--sielu-gold);
+    font-size: 0.78rem;
+    margin: 0;
 }
 
 .catalog-config-identity strong,
@@ -1601,6 +1705,56 @@ textarea {
 .catalog-config-feedback {
     color: var(--sielu-text-muted);
     font-size: 0.85rem;
+}
+
+.catalog-config-selection-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--sielu-text-dark);
+    color: #fff;
+    padding: 0.8rem 1.25rem;
+    border-radius: 50px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    z-index: 500;
+    max-width: 92vw;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.catalog-config-selection-count {
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.catalog-config-selection-warning {
+    font-size: 0.78rem;
+    color: #ffb4a8;
+}
+
+.catalog-config-selection-bar .btn-primary {
+    padding: 0.55rem 1.2rem;
+    font-size: 0.85rem;
+}
+
+.catalog-config-selection-bar .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.catalog-config-cancel-selection {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    border-radius: 50px;
+    padding: 0.55rem 1.2rem;
+    font-size: 0.85rem;
+    cursor: pointer;
 }
 
 .catalog-config-login {

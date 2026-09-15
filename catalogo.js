@@ -89,7 +89,9 @@ async function fetchProducts() {
                 temp: data.Temp || '',
                 especificaciones: data.Especificaciones || '',
                 imgContexto: data.ImgContexto || '',
-                dibujo: data.Dibujo || ''
+                dibujo: data.Dibujo || '',
+                grupoId: data.GrupoId || '',
+                nombreCatalogo: data.NombreCatalogo || ''
             });
         });
 
@@ -117,6 +119,42 @@ function getFilteredItems() {
         );
     }
     return filteredItems;
+}
+
+// Collapse products sharing a non-empty GrupoId into a single "card" (multiple
+// photos + codes, one shared set of specs/drawing taken from the lowest-Orden member).
+function mergeGroupedItems(items) {
+    const byGroup = new Map();
+    const cards = [];
+
+    items.forEach(item => {
+        if (item.grupoId) {
+            if (!byGroup.has(item.grupoId)) {
+                const card = { isGroup: true, grupoId: item.grupoId, members: [] };
+                byGroup.set(item.grupoId, card);
+                cards.push(card);
+            }
+            byGroup.get(item.grupoId).members.push(item);
+        } else {
+            cards.push({ isGroup: false, members: [item] });
+        }
+    });
+
+    cards.forEach(card => {
+        card.members.sort((a, b) => {
+            const ordA = Number(a.orden) || 0;
+            const ordB = Number(b.orden) || 0;
+            if (ordA !== ordB) return ordA - ordB;
+            return a.nombre.localeCompare(b.nombre);
+        });
+        // A GrupoId left on only one available product behaves like a normal single card.
+        if (card.members.length < 2) card.isGroup = false;
+        card.orden = Number(card.members[0].orden) || 0;
+        card.nombre = card.members[0].nombreCatalogo || card.members[0].nombre;
+    });
+
+    cards.sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre));
+    return cards;
 }
 
 // Group and sort items by category
@@ -214,20 +252,23 @@ function renderCatalog() {
         const grid = document.createElement('div');
         grid.className = 'catalog-cards-grid';
 
-        // Render Product Cards
-        grouped[cat].forEach(item => {
-            const specs = parseSpecifications(item.especificaciones, item);
-            
+        // Render Product Cards (merged groups collapse into one card)
+        const cardItems = mergeGroupedItems(grouped[cat]);
+        cardItems.forEach(cardData => {
+            const representative = cardData.members[0];
+            const specs = parseSpecifications(representative.especificaciones, representative);
+            const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
+
             const card = document.createElement('div');
             card.className = 'catalog-card';
 
             const cardLeft = document.createElement('div');
             cardLeft.className = 'card-left';
-            
+
             const img = document.createElement('img');
             img.className = 'context-img';
-            img.src = item.imgContexto || item.img || '';
-            img.alt = item.nombre;
+            img.src = representative.imgContexto || representative.img || '';
+            img.alt = cardData.nombre;
             img.loading = 'lazy';
             img.onerror = () => { img.style.display = 'none'; };
             cardLeft.appendChild(img);
@@ -235,31 +276,37 @@ function renderCatalog() {
             const cardRight = document.createElement('div');
             cardRight.className = 'card-right';
 
-            // Header row: product thumbnail + title/model (Poppins)
+            // Header row: product thumbnail(s) + title/model (Poppins)
             const headerRow = document.createElement('div');
             headerRow.className = 'card-header-row';
+            if (cardData.isGroup) headerRow.classList.add('is-group');
 
-            const thumbWrap = document.createElement('div');
-            thumbWrap.className = 'product-thumb';
-            const thumbImg = document.createElement('img');
-            thumbImg.src = item.img || item.imgContexto || '';
-            thumbImg.alt = item.nombre;
-            thumbImg.loading = 'lazy';
-            thumbImg.onerror = () => { thumbWrap.style.display = 'none'; };
-            thumbWrap.appendChild(thumbImg);
-            headerRow.appendChild(thumbWrap);
+            const thumbGroup = document.createElement('div');
+            thumbGroup.className = 'product-thumb-group';
+            cardData.members.forEach(member => {
+                const thumbWrap = document.createElement('div');
+                thumbWrap.className = 'product-thumb';
+                const thumbImg = document.createElement('img');
+                thumbImg.src = member.img || member.imgContexto || '';
+                thumbImg.alt = member.nombre;
+                thumbImg.loading = 'lazy';
+                thumbImg.onerror = () => { thumbWrap.style.display = 'none'; };
+                thumbWrap.appendChild(thumbImg);
+                thumbGroup.appendChild(thumbWrap);
+            });
+            headerRow.appendChild(thumbGroup);
 
             const heading = document.createElement('div');
             heading.className = 'product-heading';
 
             const productTitle = document.createElement('h3');
             productTitle.className = 'product-title';
-            productTitle.textContent = item.nombre;
+            productTitle.textContent = cardData.nombre;
             heading.appendChild(productTitle);
 
             const productModel = document.createElement('p');
             productModel.className = 'product-model';
-            productModel.textContent = item.codigo || '';
+            productModel.textContent = codigo;
             heading.appendChild(productModel);
 
             headerRow.appendChild(heading);
@@ -301,7 +348,7 @@ function renderCatalog() {
             cardRight.appendChild(specsSection);
 
             // Technical Drawing section
-            if (item.dibujo) {
+            if (representative.dibujo) {
                 const drawingSection = document.createElement('div');
                 drawingSection.className = 'drawing-section';
 
@@ -315,8 +362,8 @@ function renderCatalog() {
 
                 const drawingImg = document.createElement('img');
                 drawingImg.className = 'drawing-img';
-                drawingImg.src = item.dibujo;
-                drawingImg.alt = `Dimensiones de ${item.nombre}`;
+                drawingImg.src = representative.dibujo;
+                drawingImg.alt = `Dimensiones de ${cardData.nombre}`;
                 drawingImg.loading = 'lazy';
                 drawingImg.onerror = () => { drawingSection.style.display = 'none'; };
                 drawingContainer.appendChild(drawingImg);
@@ -413,20 +460,29 @@ function renderFlipbook() {
         // Map category starting page
         categoryPageMap[cat] = pageIndex;
 
-        grouped[cat].forEach(item => {
-            const specs = parseSpecifications(item.especificaciones, item);
+        const cardItems = mergeGroupedItems(grouped[cat]);
+        cardItems.forEach(cardData => {
+            const representative = cardData.members[0];
+            const specs = parseSpecifications(representative.especificaciones, representative);
+            const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
+            const thumbSize = cardData.members.length > 1 ? 52 : 70;
+            const thumbsHtml = cardData.members.map(member => `
+                <div class="product-thumb" style="width: ${thumbSize}px; height: ${thumbSize}px;">
+                    <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="this.parentNode.style.display='none'">
+                </div>
+            `).join('');
 
             const page = document.createElement('div');
             page.className = 'page';
             page.style.width = '1050px';
             page.style.height = '560px';
             page.style.padding = '0';
-            
+
             page.innerHTML = `
                 <div class="page-content" style="height: 100%; display: flex; flex-direction: row; box-sizing: border-box; overflow: hidden; width: 100%;">
                     <!-- Left: Full-bleed context photo -->
                     <div style="flex: 1.1; height: 100%; position: relative; overflow: hidden;">
-                        <img class="catalog-flip-image" src="${item.imgContexto || item.img || ''}" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" alt="${item.nombre}" onerror="this.style.display='none'">
+                        <img class="catalog-flip-image" src="${representative.imgContexto || representative.img || ''}" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" alt="${cardData.nombre}" onerror="this.style.display='none'">
                     </div>
 
                     <!-- Right: Product Details -->
@@ -437,14 +493,12 @@ function renderFlipbook() {
                             <span style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
                         </div>
 
-                        <!-- Thumbnail + Title & Model -->
+                        <!-- Thumbnail(s) + Title & Model -->
                         <div class="card-header-row" style="margin-bottom: 1.2rem;">
-                            <div class="product-thumb" style="width: 70px; height: 70px;">
-                                <img src="${item.img || item.imgContexto || ''}" alt="${item.nombre}" onerror="this.parentNode.style.display='none'">
-                            </div>
+                            <div class="product-thumb-group">${thumbsHtml}</div>
                             <div class="product-heading" style="gap: 0.15rem;">
-                                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 600; text-align: left; color: var(--sielu-text-dark); margin: 0; line-height: 1.25; text-transform: uppercase;">${item.nombre}</h3>
-                                <p style="font-family: var(--font-sans); font-size: 0.8rem; font-weight: 500; color: var(--sielu-text-muted); text-align: left; letter-spacing: 1px; margin: 0; text-transform: uppercase;">${item.codigo}</p>
+                                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 600; text-align: left; color: var(--sielu-text-dark); margin: 0; line-height: 1.25; text-transform: uppercase;">${cardData.nombre}</h3>
+                                <p style="font-family: var(--font-sans); font-size: 0.8rem; font-weight: 500; color: var(--sielu-text-muted); text-align: left; letter-spacing: 1px; margin: 0; text-transform: uppercase;">${codigo}</p>
                             </div>
                         </div>
 
@@ -466,11 +520,11 @@ function renderFlipbook() {
                         </div>
 
                         <!-- Drawing -->
-                        ${item.dibujo ? `
+                        ${representative.dibujo ? `
                         <div class="drawing-section" style="width: 100%; margin-top: auto;">
                             <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 1.5px; margin-bottom: 0.5rem; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
                             <div class="drawing-container" style="display: flex; justify-content: flex-end; align-items: center; width: 100%; margin-top: 0.2rem; height: 95px;">
-                                <img class="drawing-img" src="${item.dibujo}" style="max-height: 90px; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
+                                <img class="drawing-img" src="${representative.dibujo}" style="max-height: 90px; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
                             </div>
                             <p style="font-family: var(--font-sans); font-size: 0.62rem; font-style: italic; color: var(--sielu-text-muted); text-align: right; margin-top: 0.3rem;">*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*</p>
                         </div>
