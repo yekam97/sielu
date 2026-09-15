@@ -404,63 +404,61 @@ const FLIP_PAGE_H = Math.round(FLIP_PAGE_W / FLIP_PAGE_RATIO);
 const FLIP_MIN_WIDTH = 800;
 
 // Build the product block used inside a flipbook page (two per page: top/bottom half).
-// PageFlip scales the physical page's rendered pixel size depending on viewport width, so every
-// level below uses a FIXED pixel height plus overflow:hidden (never content-driven / percentage
-// sizing) to make the total height deterministic. FLIP_MIN_WIDTH below is chosen so that even at
-// PageFlip's narrowest allowed render, this budget still fits with margin to spare — see
-// initPageFlip(). The .spec-item/.drawing-container classes' own padding/border (sized for the
-// much roomier list-view card) are explicitly zeroed out here instead of reused.
-const FLIP_TITLE_BLOCK_H = 58;
-const FLIP_ROW_H = 185;
-const FLIP_BLOCK_GAP = 8;
-
+// PageFlip scales the physical page's rendered pixel size depending on viewport width, so a fixed
+// pixel budget either clips on small renders or leaves a growing dead zone of empty space on large
+// ones. Instead, the title block is flex-shrink:0 (renders at its natural, modest size, never
+// squeezed) and the photo/specs/dimensions row is flex:1 1 0 — it always fills exactly whatever
+// vertical space remains in the half, so thumbnails/specs/drawing grow on tall page renders and
+// shrink on short ones, with overflow:hidden at each level as a clean-clip safety net rather than
+// relying on precomputed numbers. The .spec-item/.drawing-container classes' own padding/border
+// (sized for the much roomier list-view card) are explicitly zeroed out here instead of reused.
 function buildFlipCardHtml(cardData, cat) {
     const representative = cardData.members[0];
     const specs = parseSpecifications(representative.especificaciones, representative);
     const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
-    const thumbSize = cardData.members.length > 1 ? 80 : 100;
+    const thumbMaxSize = cardData.members.length > 1 ? 200 : 260;
     const thumbsHtml = cardData.members.map(member => `
-        <div class="product-thumb" style="width: ${thumbSize}px; height: ${thumbSize}px; padding: 0.4rem;">
+        <div class="product-thumb" style="width: min(100%, ${thumbMaxSize}px); height: min(100%, ${thumbMaxSize}px); aspect-ratio: 1; padding: 0.6rem; box-sizing: border-box;">
             <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="this.parentNode.style.display='none'">
         </div>
     `).join('');
 
     return `
-        <div style="height: 100%; overflow: hidden; box-sizing: border-box;">
-            <div style="height: ${FLIP_TITLE_BLOCK_H}px; overflow: hidden; margin-bottom: ${FLIP_BLOCK_GAP}px; box-sizing: border-box;">
+        <div style="height: 100%; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column;">
+            <div style="flex: 0 0 auto; overflow: hidden; margin-bottom: 0.6rem; box-sizing: border-box;">
                 <div style="line-height: 1; margin: 0 0 3px;">
-                    <span style="font-family: var(--font-sans); font-size: 0.68rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
+                    <span style="font-family: var(--font-sans); font-size: 0.7rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
                 </div>
-                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--sielu-text-dark); margin: 0 0 3px; line-height: 1.2; text-transform: uppercase; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${cardData.nombre}</h3>
-                <p style="font-family: var(--font-sans); font-size: 0.72rem; font-weight: 500; color: var(--sielu-text-muted); letter-spacing: 1px; margin: 0; line-height: 1; text-transform: uppercase;">${codigo}</p>
+                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--sielu-text-dark); margin: 0 0 3px; line-height: 1.2; text-transform: uppercase; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${cardData.nombre}</h3>
+                <p style="font-family: var(--font-sans); font-size: 0.74rem; font-weight: 500; color: var(--sielu-text-muted); letter-spacing: 1px; margin: 0; line-height: 1; text-transform: uppercase;">${codigo}</p>
             </div>
 
-            <div style="display: flex; gap: 1.5rem; align-items: flex-start; height: ${FLIP_ROW_H}px; overflow: hidden; box-sizing: border-box;">
-                <div class="product-thumb-group" style="flex: 0 0 auto; height: 100%; overflow: hidden; gap: 0.5rem;">${thumbsHtml}</div>
+            <div style="display: flex; gap: 1.75rem; align-items: stretch; flex: 1 1 0; min-height: 0; overflow: hidden; box-sizing: border-box;">
+                <div class="product-thumb-group" style="flex: 0 0 auto; height: 100%; overflow: hidden; gap: 0.6rem; align-items: center;">${thumbsHtml}</div>
 
                 <div style="flex: 1 1 280px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
-                    <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 6px; line-height: 1; flex-shrink: 0; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 4px;">ESPECIFICACIONES TÉCNICAS</h4>
-                    <div style="flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; gap: 5px;">
-                        ${specs.length > 0 ? specs.slice(0, 5).map(spec => `
-                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.4rem; padding: 0; border: 0; line-height: 1.2;">
-                                <span style="width: 13px; height: 13px; flex-shrink: 0; color: var(--sielu-gold); display: flex;">${getSpecIcon(spec.label)}</span>
-                                <span style="font-family: var(--font-sans); font-weight: 600; font-size: 0.66rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
+                    <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 5px;">ESPECIFICACIONES TÉCNICAS</h4>
+                    <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: clamp(5px, 3%, 16px);">
+                        ${specs.length > 0 ? specs.slice(0, 6).map(spec => `
+                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.4rem; padding: 0; border: 0; line-height: 1.2; flex-shrink: 0;">
+                                <span style="width: 15px; height: 15px; flex-shrink: 0; color: var(--sielu-gold); display: flex;">${getSpecIcon(spec.label)}</span>
+                                <span style="font-family: var(--font-sans); font-weight: 600; font-size: 0.72rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
                                 <span style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 6px;"></span>
-                                <span style="font-family: var(--font-sans); font-size: 0.68rem; color: var(--sielu-text-dark); text-align: right; white-space: nowrap;">${spec.value}</span>
+                                <span style="font-family: var(--font-sans); font-size: 0.74rem; color: var(--sielu-text-dark); text-align: right; white-space: nowrap;">${spec.value}</span>
                             </div>
                         `).join('') : `
-                            <div style="font-family: var(--font-sans); font-size: 0.68rem; color: #888; font-style: italic; line-height: 1.2;">Sin especificaciones disponibles</div>
+                            <div style="font-family: var(--font-sans); font-size: 0.74rem; color: #888; font-style: italic; line-height: 1.2;">Sin especificaciones disponibles</div>
                         `}
                     </div>
                 </div>
 
                 ${representative.dibujo ? `
-                <div style="flex: 1 1 230px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
-                    <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.85rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 6px; line-height: 1; flex-shrink: 0; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
-                    <div style="flex: 1 1 auto; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 4px; box-sizing: border-box;">
+                <div style="flex: 1 1 260px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
+                    <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
+                    <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 4px; box-sizing: border-box;">
                         <img src="${representative.dibujo}" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
                     </div>
-                    <p style="font-family: var(--font-sans); font-size: 0.56rem; font-style: italic; color: var(--sielu-text-muted); text-align: right; margin: 2px 0 0; line-height: 1.1; flex-shrink: 0;">*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*</p>
+                    <p style="font-family: var(--font-sans); font-size: 0.6rem; font-style: italic; color: var(--sielu-text-muted); text-align: right; margin: 4px 0 0; line-height: 1.1; flex-shrink: 0;">*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*</p>
                 </div>
                 ` : ''}
             </div>
