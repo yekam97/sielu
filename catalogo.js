@@ -260,26 +260,31 @@ function renderCatalog() {
             const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
 
             const card = document.createElement('div');
-            card.className = 'catalog-card';
+            card.className = 'catalog-card catalog-card--flat';
 
-            const cardLeft = document.createElement('div');
-            cardLeft.className = 'card-left';
+            // Title block (context photo removed for now)
+            const titleBlock = document.createElement('div');
+            titleBlock.className = 'card-title-block';
 
-            const img = document.createElement('img');
-            img.className = 'context-img';
-            img.src = representative.imgContexto || representative.img || '';
-            img.alt = cardData.nombre;
-            img.loading = 'lazy';
-            img.onerror = () => { img.style.display = 'none'; };
-            cardLeft.appendChild(img);
+            const productTitle = document.createElement('h3');
+            productTitle.className = 'product-title';
+            productTitle.textContent = cardData.nombre;
+            titleBlock.appendChild(productTitle);
 
-            const cardRight = document.createElement('div');
-            cardRight.className = 'card-right';
+            const productModel = document.createElement('p');
+            productModel.className = 'product-model';
+            productModel.textContent = codigo;
+            titleBlock.appendChild(productModel);
 
-            // Header row: product thumbnail(s) + title/model (Poppins)
-            const headerRow = document.createElement('div');
-            headerRow.className = 'card-header-row';
-            if (cardData.isGroup) headerRow.classList.add('is-group');
+            card.appendChild(titleBlock);
+
+            // Columns: product photo(s), specs, dimensions
+            const columns = document.createElement('div');
+            columns.className = 'card-columns';
+
+            const photosCol = document.createElement('div');
+            photosCol.className = 'card-photos';
+            if (cardData.isGroup) photosCol.classList.add('is-group');
 
             const thumbGroup = document.createElement('div');
             thumbGroup.className = 'product-thumb-group';
@@ -294,23 +299,8 @@ function renderCatalog() {
                 thumbWrap.appendChild(thumbImg);
                 thumbGroup.appendChild(thumbWrap);
             });
-            headerRow.appendChild(thumbGroup);
-
-            const heading = document.createElement('div');
-            heading.className = 'product-heading';
-
-            const productTitle = document.createElement('h3');
-            productTitle.className = 'product-title';
-            productTitle.textContent = cardData.nombre;
-            heading.appendChild(productTitle);
-
-            const productModel = document.createElement('p');
-            productModel.className = 'product-model';
-            productModel.textContent = codigo;
-            heading.appendChild(productModel);
-
-            headerRow.appendChild(heading);
-            cardRight.appendChild(headerRow);
+            photosCol.appendChild(thumbGroup);
+            columns.appendChild(photosCol);
 
             // Specifications section
             const specsSection = document.createElement('div');
@@ -345,7 +335,7 @@ function renderCatalog() {
                 specsList.appendChild(itemEl);
             }
             specsSection.appendChild(specsList);
-            cardRight.appendChild(specsSection);
+            columns.appendChild(specsSection);
 
             // Technical Drawing section
             if (representative.dibujo) {
@@ -375,11 +365,10 @@ function renderCatalog() {
                 drawingNote.textContent = '*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*';
                 drawingSection.appendChild(drawingNote);
 
-                cardRight.appendChild(drawingSection);
+                columns.appendChild(drawingSection);
             }
 
-            card.appendChild(cardLeft);
-            card.appendChild(cardRight);
+            card.appendChild(columns);
             grid.appendChild(card);
         });
 
@@ -465,7 +454,7 @@ function renderFlipbook() {
             const representative = cardData.members[0];
             const specs = parseSpecifications(representative.especificaciones, representative);
             const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
-            const thumbSize = cardData.members.length > 1 ? 52 : 70;
+            const thumbSize = cardData.members.length > 1 ? 100 : 130;
             const thumbsHtml = cardData.members.map(member => `
                 <div class="product-thumb" style="width: ${thumbSize}px; height: ${thumbSize}px;">
                     <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="this.parentNode.style.display='none'">
@@ -479,31 +468,22 @@ function renderFlipbook() {
             page.style.padding = '0';
 
             page.innerHTML = `
-                <div class="page-content" style="height: 100%; display: flex; flex-direction: row; box-sizing: border-box; overflow: hidden; width: 100%;">
-                    <!-- Left: Full-bleed context photo -->
-                    <div style="flex: 1.1; height: 100%; position: relative; overflow: hidden;">
-                        <img class="catalog-flip-image" src="${representative.imgContexto || representative.img || ''}" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" alt="${cardData.nombre}" onerror="this.style.display='none'">
+                <div class="page-content" style="height: 100%; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; width: 100%; padding: 2.75rem 3rem;">
+
+                    <!-- Category name -->
+                    <div style="text-align: left; margin-bottom: 0.3rem;">
+                        <span style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
                     </div>
 
-                    <!-- Right: Product Details -->
-                    <div style="flex: 1.2; padding: 2.5rem; display: flex; flex-direction: column; justify-content: flex-start; box-sizing: border-box; height: 100%; overflow: hidden;">
+                    <!-- Title & Model -->
+                    <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.9rem; font-weight: 700; text-align: left; color: var(--sielu-text-dark); margin: 0 0 0.35rem; line-height: 1.25; text-transform: uppercase;">${cardData.nombre}</h3>
+                    <p style="font-family: var(--font-sans); font-size: 0.95rem; font-weight: 500; color: var(--sielu-text-muted); text-align: left; letter-spacing: 1px; margin: 0 0 1.75rem; text-transform: uppercase;">${codigo}</p>
 
-                        <!-- Category name -->
-                        <div style="text-align: left; margin-bottom: 0.3rem;">
-                            <span style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
-                        </div>
+                    <!-- Columns: product photo(s), specs, dimensions -->
+                    <div style="display: flex; gap: 2.5rem; align-items: flex-start; flex: 1; overflow: hidden;">
+                        <div class="product-thumb-group" style="flex: 0 0 auto;">${thumbsHtml}</div>
 
-                        <!-- Thumbnail(s) + Title & Model -->
-                        <div class="card-header-row" style="margin-bottom: 1.2rem;">
-                            <div class="product-thumb-group">${thumbsHtml}</div>
-                            <div class="product-heading" style="gap: 0.15rem;">
-                                <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 600; text-align: left; color: var(--sielu-text-dark); margin: 0; line-height: 1.25; text-transform: uppercase;">${cardData.nombre}</h3>
-                                <p style="font-family: var(--font-sans); font-size: 0.8rem; font-weight: 500; color: var(--sielu-text-muted); text-align: left; letter-spacing: 1px; margin: 0; text-transform: uppercase;">${codigo}</p>
-                            </div>
-                        </div>
-
-                        <!-- Specs -->
-                        <div class="specs-section" style="width: 100%; margin-bottom: 1.5rem;">
+                        <div class="specs-section" style="flex: 1 1 300px; margin-bottom: 0;">
                             <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 1.5px; margin-bottom: 0.6rem; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 2px;">ESPECIFICACIONES TÉCNICAS</h4>
                             <div class="specs-list" style="display: flex; flex-direction: column; gap: 0.4rem;">
                                 ${specs.length > 0 ? specs.slice(0, 6).map(spec => `
@@ -519,14 +499,13 @@ function renderFlipbook() {
                             </div>
                         </div>
 
-                        <!-- Drawing -->
                         ${representative.dibujo ? `
-                        <div class="drawing-section" style="width: 100%; margin-top: auto;">
+                        <div class="drawing-section" style="flex: 1 1 280px; margin-bottom: 0;">
                             <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 1.5px; margin-bottom: 0.5rem; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
-                            <div class="drawing-container" style="display: flex; justify-content: flex-end; align-items: center; width: 100%; margin-top: 0.2rem; height: 95px;">
-                                <img class="drawing-img" src="${representative.dibujo}" style="max-height: 90px; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
+                            <div class="drawing-container" style="display: flex; justify-content: center; align-items: center; width: 100%; margin-top: 0.2rem; height: 220px;">
+                                <img class="drawing-img" src="${representative.dibujo}" style="max-height: 200px; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
                             </div>
-                            <p style="font-family: var(--font-sans); font-size: 0.62rem; font-style: italic; color: var(--sielu-text-muted); text-align: right; margin-top: 0.3rem;">*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*</p>
+                            <p style="font-family: var(--font-sans); font-size: 0.68rem; font-style: italic; color: var(--sielu-text-muted); text-align: right; margin-top: 0.3rem;">*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*</p>
                         </div>
                         ` : ''}
                     </div>
