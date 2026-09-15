@@ -167,9 +167,13 @@ function mergeGroupedItems(items) {
         if (card.members.length < 2) card.isGroup = false;
         card.orden = Number(card.members[0].orden) || 0;
         card.nombre = card.members[0].nombreCatalogo || card.members[0].nombre;
+        // Sort by the real product name, never by the (optionally overridden) catalog display
+        // name — otherwise renaming a group's display name in the configurador would also move
+        // it to wherever that new name falls alphabetically among same-Orden products.
+        card.sortNombre = card.members[0].nombre;
     });
 
-    cards.sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre));
+    cards.sort((a, b) => a.orden - b.orden || a.sortNombre.localeCompare(b.sortNombre));
     return cards;
 }
 
