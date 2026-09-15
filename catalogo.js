@@ -60,6 +60,21 @@ function getSpecIcon(label) {
     return icons.default;
 }
 
+// Build the "CODE1 / CODE2" markup, prefixing each code with a colored dot when that
+// member has a ColorSwatch assigned (set per-product in the configurador, so a group of
+// merged products can show a different color next to each of its codes).
+function buildCodesHtml(members) {
+    return members
+        .filter(member => member.codigo)
+        .map(member => {
+            const dot = member.colorSwatch
+                ? `<span class="code-dot" style="background-color: ${member.colorSwatch};"></span>`
+                : '';
+            return `<span class="code-item">${dot}${member.codigo}</span>`;
+        })
+        .join('<span class="code-sep">/</span>');
+}
+
 async function fetchProducts() {
     try {
         const q = query(collection(db, "productos_sielu"));
@@ -91,7 +106,8 @@ async function fetchProducts() {
                 imgContexto: data.ImgContexto || '',
                 dibujo: data.Dibujo || '',
                 grupoId: data.GrupoId || '',
-                nombreCatalogo: data.NombreCatalogo || ''
+                nombreCatalogo: data.NombreCatalogo || '',
+                colorSwatch: data.ColorSwatch || ''
             });
         });
 
@@ -281,7 +297,6 @@ function renderCatalog() {
 function buildListProductBlock(cardData) {
     const representative = cardData.members[0];
     const specs = parseSpecifications(representative.especificaciones, representative);
-    const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
 
     const block = document.createElement('div');
     block.className = 'card-product-block';
@@ -297,7 +312,7 @@ function buildListProductBlock(cardData) {
 
     const productModel = document.createElement('p');
     productModel.className = 'product-model';
-    productModel.textContent = codigo;
+    productModel.innerHTML = buildCodesHtml(cardData.members);
     titleBlock.appendChild(productModel);
 
     block.appendChild(titleBlock);
@@ -415,7 +430,6 @@ const FLIP_MIN_WIDTH = 800;
 function buildFlipCardHtml(cardData, cat) {
     const representative = cardData.members[0];
     const specs = parseSpecifications(representative.especificaciones, representative);
-    const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
     const thumbMaxSize = cardData.members.length > 1 ? 200 : 260;
     const thumbsHtml = cardData.members.map(member => `
         <div class="product-thumb" style="width: min(100%, ${thumbMaxSize}px); height: min(100%, ${thumbMaxSize}px); aspect-ratio: 1; padding: 0.6rem; box-sizing: border-box;">
@@ -430,7 +444,7 @@ function buildFlipCardHtml(cardData, cat) {
                     <span style="font-family: var(--font-sans); font-size: 0.7rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
                 </div>
                 <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--sielu-text-dark); margin: 0 0 3px; line-height: 1.2; text-transform: uppercase; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${cardData.nombre}</h3>
-                <p style="font-family: var(--font-sans); font-size: 0.74rem; font-weight: 500; color: var(--sielu-text-muted); letter-spacing: 1px; margin: 0; line-height: 1; text-transform: uppercase;">${codigo}</p>
+                <p style="font-family: var(--font-sans); font-size: 0.74rem; font-weight: 500; color: var(--sielu-text-muted); letter-spacing: 1px; margin: 0; line-height: 1; text-transform: uppercase;">${buildCodesHtml(cardData.members)}</p>
             </div>
 
             <div style="display: flex; gap: 1.75rem; align-items: stretch; flex: 1 1 0; min-height: 0; overflow: hidden; box-sizing: border-box;">

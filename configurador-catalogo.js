@@ -60,7 +60,8 @@ async function fetchProducts() {
                 specifications: data.Especificaciones || '',
                 order: Number(data.Orden ?? data.orden ?? 0),
                 groupId: data.GrupoId || '',
-                catalogName: data.NombreCatalogo || ''
+                catalogName: data.NombreCatalogo || '',
+                colorSwatch: data.ColorSwatch || ''
             });
         });
 
@@ -195,6 +196,27 @@ function buildThumbWrap(product, { removable = false } = {}) {
     return wrap;
 }
 
+// Small color picker saved immediately on change — drives the colored dot shown next to this
+// product's code in the visual catalog. Independent per product, so each code in a merged group
+// can get its own color.
+function buildColorInput(product) {
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.className = 'catalog-config-color-input';
+    input.title = 'Color del círculo junto al código en el catálogo';
+    input.value = product.colorSwatch || '#cccccc';
+    input.addEventListener('change', async () => {
+        try {
+            await updateDoc(doc(db, 'productos_sielu', product.id), { ColorSwatch: input.value });
+            product.colorSwatch = input.value;
+        } catch (error) {
+            console.error('Error al guardar el color:', error);
+            alert('No se pudo guardar el color.');
+        }
+    });
+    return input;
+}
+
 async function removeFromGroup(product) {
     try {
         await updateDoc(doc(db, 'productos_sielu', product.id), { GrupoId: '', NombreCatalogo: '' });
@@ -254,9 +276,15 @@ function renderSingleCard(product) {
     identity.className = 'catalog-config-identity';
     identity.appendChild(buildThumbWrap(product));
     const title = document.createElement('div');
-    title.innerHTML = `<strong></strong><small></small>`;
-    title.querySelector('strong').textContent = product.name;
-    title.querySelector('small').textContent = product.code || 'Sin código';
+    const nameEl = document.createElement('strong');
+    nameEl.textContent = product.name;
+    title.appendChild(nameEl);
+    const codeRow = document.createElement('div');
+    codeRow.className = 'catalog-config-code-row';
+    const codeEl = document.createElement('small');
+    codeEl.textContent = product.code || 'Sin código';
+    codeRow.append(codeEl, buildColorInput(product));
+    title.appendChild(codeRow);
     identity.appendChild(title);
     form.appendChild(identity);
 
@@ -319,9 +347,12 @@ function renderGroupCard(card) {
         const memberBlock = document.createElement('div');
         memberBlock.className = 'catalog-config-group-member';
         memberBlock.appendChild(buildThumbWrap(member, { removable: true }));
+        const codeRow = document.createElement('div');
+        codeRow.className = 'catalog-config-code-row';
         const code = document.createElement('small');
         code.textContent = member.code || 'Sin código';
-        memberBlock.appendChild(code);
+        codeRow.append(code, buildColorInput(member));
+        memberBlock.appendChild(codeRow);
         membersRow.appendChild(memberBlock);
     });
     const ungroupBtn = document.createElement('button');

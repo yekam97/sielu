@@ -1332,6 +1332,28 @@ textarea {
     text-transform: uppercase;
 }
 
+/* Color dot next to each code (assigned per product in the configurador) */
+.code-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+}
+
+.code-dot {
+    display: inline-block;
+    width: 0.65em;
+    height: 0.65em;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    flex-shrink: 0;
+}
+
+.code-sep {
+    margin: 0 0.5em;
+    color: var(--sielu-text-muted);
+    opacity: 0.6;
+}
+
 /* Technical Sections */
 .specs-section,
 .drawing-section {
@@ -1736,6 +1758,28 @@ textarea {
 .catalog-config-identity small {
     color: var(--sielu-text-muted);
     margin-top: 0.3rem;
+}
+
+.catalog-config-code-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.3rem;
+}
+
+.catalog-config-code-row small {
+    margin-top: 0;
+}
+
+.catalog-config-color-input {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid #ddd8cf;
+    border-radius: 4px;
+    cursor: pointer;
+    background: none;
+    flex-shrink: 0;
 }
 
 .catalog-config-fields {
