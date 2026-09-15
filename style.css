@@ -1745,6 +1745,14 @@ textarea {
     margin: 0;
 }
 
+/* The group card has no 180px identity column (its member row already spans full width above),
+   so its fields/actions must span the grid too — otherwise they get squeezed into the narrow
+   first column meant for the single-product card's thumbnail, leaving the rest of the row empty. */
+.catalog-config-product--group .catalog-config-fields,
+.catalog-config-product--group .catalog-config-actions {
+    grid-column: 1 / -1;
+}
+
 .catalog-config-identity strong,
 .catalog-config-identity small {
     display: block;
