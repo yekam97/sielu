@@ -377,6 +377,69 @@ function renderCatalog() {
     });
 }
 
+// Build the compact product block used inside a flipbook page (two per page: top/bottom half).
+// PageFlip scales the physical page size dynamically depending on viewport width (observed as low
+// as ~370px tall for a 560px-tall page), so every level below uses a FIXED pixel height plus
+// overflow:hidden (never content-driven / percentage-of-ancestor sizing). That makes the total
+// height deterministic regardless of text length or the reused .spec-item/.drawing-container
+// classes' own padding and borders (which are explicitly zeroed out here since they're designed
+// for the much roomier list-view card and would otherwise inflate this compact block).
+const FLIP_TITLE_BLOCK_H = 48;
+const FLIP_ROW_H = 96;
+
+function buildFlipCardHtml(cardData, cat) {
+    const representative = cardData.members[0];
+    const specs = parseSpecifications(representative.especificaciones, representative);
+    const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
+    const thumbSize = cardData.members.length > 1 ? 44 : 56;
+    const thumbsHtml = cardData.members.map(member => `
+        <div class="product-thumb" style="width: ${thumbSize}px; height: ${thumbSize}px; padding: 0.25rem;">
+            <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="this.parentNode.style.display='none'">
+        </div>
+    `).join('');
+
+    return `
+        <div style="height: 100%; overflow: hidden; box-sizing: border-box;">
+            <div style="height: ${FLIP_TITLE_BLOCK_H}px; overflow: hidden; margin-bottom: 6px; box-sizing: border-box;">
+                <div style="line-height: 1; margin: 0 0 2px;">
+                    <span style="font-family: var(--font-sans); font-size: 0.55rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
+                </div>
+                <h3 style="font-family: 'Poppins', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--sielu-text-dark); margin: 0 0 2px; line-height: 1.15; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cardData.nombre}</h3>
+                <p style="font-family: var(--font-sans); font-size: 0.58rem; font-weight: 500; color: var(--sielu-text-muted); letter-spacing: 1px; margin: 0; line-height: 1; text-transform: uppercase;">${codigo}</p>
+            </div>
+
+            <div style="display: flex; gap: 1rem; align-items: flex-start; height: ${FLIP_ROW_H}px; overflow: hidden; box-sizing: border-box;">
+                <div class="product-thumb-group" style="flex: 0 0 auto; height: 100%; overflow: hidden; gap: 0.3rem;">${thumbsHtml}</div>
+
+                <div style="flex: 1 1 220px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
+                    <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.66rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.5px; margin: 0 0 3px; line-height: 1; flex-shrink: 0; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 2px;">ESPECIFICACIONES TÉCNICAS</h4>
+                    <div style="flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; gap: 2px;">
+                        ${specs.length > 0 ? specs.slice(0, 4).map(spec => `
+                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.3rem; padding: 0; border: 0; line-height: 1.1;">
+                                <span style="width: 9px; height: 9px; flex-shrink: 0; color: var(--sielu-gold); display: flex;">${getSpecIcon(spec.label)}</span>
+                                <span style="font-family: var(--font-sans); font-weight: 600; font-size: 0.5rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
+                                <span style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 5px;"></span>
+                                <span style="font-family: var(--font-sans); font-size: 0.52rem; color: var(--sielu-text-dark); text-align: right; white-space: nowrap;">${spec.value}</span>
+                            </div>
+                        `).join('') : `
+                            <div style="font-family: var(--font-sans); font-size: 0.52rem; color: #888; font-style: italic; line-height: 1.1;">Sin especificaciones disponibles</div>
+                        `}
+                    </div>
+                </div>
+
+                ${representative.dibujo ? `
+                <div style="flex: 1 1 170px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
+                    <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.62rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.5px; margin: 0 0 3px; line-height: 1; flex-shrink: 0; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
+                    <div style="flex: 1 1 auto; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 2px; box-sizing: border-box;">
+                        <img src="${representative.dibujo}" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
 // RENDER FLIPBOOK VIEW (Landscape Layout to match List view card)
 function renderFlipbook() {
     const container = document.getElementById('bookContainer');
@@ -444,22 +507,14 @@ function renderFlipbook() {
 
     let pageIndex = 2; // Index starts at 2 (0: Cover, 1: Index)
 
-    // 3. Product Pages (Landscape - Exact match of list view card layout)
+    // 3. Product Pages (two products per page: one on top, one below — groups count as one slot)
     sortedCategories.forEach(cat => {
         // Map category starting page
         categoryPageMap[cat] = pageIndex;
 
         const cardItems = mergeGroupedItems(grouped[cat]);
-        cardItems.forEach(cardData => {
-            const representative = cardData.members[0];
-            const specs = parseSpecifications(representative.especificaciones, representative);
-            const codigo = cardData.members.map(m => m.codigo).filter(Boolean).join(' / ');
-            const thumbSize = cardData.members.length > 1 ? 100 : 130;
-            const thumbsHtml = cardData.members.map(member => `
-                <div class="product-thumb" style="width: ${thumbSize}px; height: ${thumbSize}px;">
-                    <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="this.parentNode.style.display='none'">
-                </div>
-            `).join('');
+        for (let i = 0; i < cardItems.length; i += 2) {
+            const pair = cardItems.slice(i, i + 2);
 
             const page = document.createElement('div');
             page.className = 'page';
@@ -468,52 +523,15 @@ function renderFlipbook() {
             page.style.padding = '0';
 
             page.innerHTML = `
-                <div class="page-content" style="height: 100%; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; width: 100%; padding: 2.75rem 3rem;">
-
-                    <!-- Category name -->
-                    <div style="text-align: left; margin-bottom: 0.3rem;">
-                        <span style="font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; color: var(--sielu-accent); text-transform: uppercase; letter-spacing: 1px;">${cat}</span>
-                    </div>
-
-                    <!-- Title & Model -->
-                    <h3 style="font-family: 'Poppins', sans-serif; font-size: 1.9rem; font-weight: 700; text-align: left; color: var(--sielu-text-dark); margin: 0 0 0.35rem; line-height: 1.25; text-transform: uppercase;">${cardData.nombre}</h3>
-                    <p style="font-family: var(--font-sans); font-size: 0.95rem; font-weight: 500; color: var(--sielu-text-muted); text-align: left; letter-spacing: 1px; margin: 0 0 1.75rem; text-transform: uppercase;">${codigo}</p>
-
-                    <!-- Columns: product photo(s), specs, dimensions -->
-                    <div style="display: flex; gap: 2.5rem; align-items: flex-start; flex: 1; overflow: hidden;">
-                        <div class="product-thumb-group" style="flex: 0 0 auto;">${thumbsHtml}</div>
-
-                        <div class="specs-section" style="flex: 1 1 300px; margin-bottom: 0;">
-                            <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 1.5px; margin-bottom: 0.6rem; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 2px;">ESPECIFICACIONES TÉCNICAS</h4>
-                            <div class="specs-list" style="display: flex; flex-direction: column; gap: 0.4rem;">
-                                ${specs.length > 0 ? specs.slice(0, 6).map(spec => `
-                                    <div class="spec-item" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.5rem;">
-                                        <span class="spec-icon" style="width: 15px; height: 15px; flex-shrink: 0; color: var(--sielu-gold);">${getSpecIcon(spec.label)}</span>
-                                        <span class="spec-label" style="font-family: var(--font-sans); font-weight: 600; font-size: 0.8rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
-                                        <span class="spec-dots" style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 8px; align-self: flex-end; margin-bottom: 3px;"></span>
-                                        <span class="spec-value" style="font-family: var(--font-sans); font-size: 0.85rem; color: var(--sielu-text-dark); text-align: right; word-break: break-word;">${spec.value}</span>
-                                    </div>
-                                `).join('') : `
-                                    <div style="font-family: var(--font-sans); font-size: 0.8rem; color: #888; font-style: italic;">Sin especificaciones disponibles</div>
-                                `}
-                            </div>
-                        </div>
-
-                        ${representative.dibujo ? `
-                        <div class="drawing-section" style="flex: 1 1 280px; margin-bottom: 0;">
-                            <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 1.5px; margin-bottom: 0.5rem; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
-                            <div class="drawing-container" style="display: flex; justify-content: center; align-items: center; width: 100%; margin-top: 0.2rem; height: 220px;">
-                                <img class="drawing-img" src="${representative.dibujo}" style="max-height: 200px; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
-                            </div>
-                            <p style="font-family: var(--font-sans); font-size: 0.68rem; font-style: italic; color: var(--sielu-text-muted); text-align: right; margin-top: 0.3rem;">*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*</p>
-                        </div>
-                        ` : ''}
-                    </div>
+                <div class="page-content" style="height: 100%; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; width: 100%; padding: 0.75rem 2rem;">
+                    <div style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[0], cat)}</div>
+                    ${pair[1] ? '<div style="flex: 0 0 auto; height: 1px; background: #ECE7DB; margin: 0.5rem 0;"></div>' : ''}
+                    ${pair[1] ? `<div style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[1], cat)}</div>` : ''}
                 </div>
             `;
             container.appendChild(page);
             pageIndex++;
-        });
+        }
     });
 
     // 4. Back Cover Page (Landscape)
