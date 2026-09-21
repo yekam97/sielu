@@ -13,6 +13,33 @@ const SPECS_TWO_COL_THRESHOLD = 6;
 // Map to store the starting page index of each category in the flipbook
 let categoryPageMap = {};
 
+// Product images live on free third-party hosts (catbox.moe, etc.) that reset connections
+// (ERR_HTTP2_PROTOCOL_ERROR) when many requests arrive at once. A single failed request must not
+// make a photo or drawing vanish for good, so failed images are retried a few times with a
+// growing, jittered delay before giving up and hiding them.
+const IMG_MAX_RETRIES = 3;
+
+function retryImage(img, onGiveUp) {
+    const tries = Number(img.dataset.retries || 0);
+    if (tries >= IMG_MAX_RETRIES) {
+        onGiveUp();
+        return;
+    }
+    img.dataset.retries = String(tries + 1);
+    const delay = 700 * (tries + 1) + Math.random() * 700;
+    setTimeout(() => {
+        const src = img.getAttribute('src');
+        img.removeAttribute('src');
+        img.setAttribute('src', src);
+    }, delay);
+}
+
+// Used by the flipbook's inline onerror handlers; 'thumb' hides the thumbnail box, 'drawing'
+// hides the whole dimensions column once retries are exhausted.
+window.sieluRetryImg = (img, kind) => retryImage(img, () => {
+    (kind === 'drawing' ? img.parentNode.parentNode : img.parentNode).style.display = 'none';
+});
+
 // Parse specifications field (e.g. "TIPO LÁMPARA: Spot\nMATERIAL: Aluminio") into key-value pairs
 function parseSpecifications(specsText, item) {
     if (specsText && specsText.trim()) {
@@ -317,10 +344,10 @@ function buildListProductBlock(cardData) {
         const thumbWrap = document.createElement('div');
         thumbWrap.className = 'product-thumb';
         const thumbImg = document.createElement('img');
+        thumbImg.loading = 'lazy';
         thumbImg.src = member.img || member.imgContexto || '';
         thumbImg.alt = member.nombre;
-        thumbImg.loading = 'lazy';
-        thumbImg.onerror = () => { thumbWrap.style.display = 'none'; };
+        thumbImg.onerror = () => retryImage(thumbImg, () => { thumbWrap.style.display = 'none'; });
         thumbWrap.appendChild(thumbImg);
         thumbGroup.appendChild(thumbWrap);
     });
@@ -381,10 +408,10 @@ function buildListProductBlock(cardData) {
 
         const drawingImg = document.createElement('img');
         drawingImg.className = 'drawing-img';
+        drawingImg.loading = 'lazy';
         drawingImg.src = representative.dibujo;
         drawingImg.alt = `Dimensiones de ${cardData.nombre}`;
-        drawingImg.loading = 'lazy';
-        drawingImg.onerror = () => { drawingSection.style.display = 'none'; };
+        drawingImg.onerror = () => retryImage(drawingImg, () => { drawingSection.style.display = 'none'; });
         drawingContainer.appendChild(drawingImg);
 
         drawingSection.appendChild(drawingContainer);
@@ -432,7 +459,7 @@ function buildFlipCardHtml(cardData, cat) {
     const specFont = wideSpecs ? 0.66 : 0.72;
     const thumbsHtml = cardData.members.map(member => `
         <div class="product-thumb" style="width: 100%; height: 100%; padding: 0.5rem; box-sizing: border-box;">
-            <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="this.parentNode.style.display='none'">
+            <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" loading="lazy" onerror="window.sieluRetryImg(this, 'thumb')">
         </div>
     `).join('');
     const thumbGroupStyle = `flex: 0 0 auto; height: 100%; aspect-ratio: ${photoCols} / ${photoRows}; max-height: ${thumbCap * photoRows + photoGap * (photoRows - 1)}px; overflow: hidden; display: grid; grid-template-columns: repeat(${photoCols}, minmax(0, 1fr)); grid-template-rows: repeat(${photoRows}, minmax(0, 1fr)); gap: ${photoGap}px; align-self: center;`;
@@ -469,7 +496,7 @@ function buildFlipCardHtml(cardData, cat) {
                 <div style="flex: 1 1 260px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
                     <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase;">DIMENSIONES</h4>
                     <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 4px; box-sizing: border-box;">
-                        <img src="${representative.dibujo}" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
+                        <img src="${representative.dibujo}" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" loading="lazy" onerror="window.sieluRetryImg(this, 'drawing')">
                     </div>
                 </div>
                 ` : ''}
