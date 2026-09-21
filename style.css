@@ -1277,6 +1277,46 @@ textarea {
     margin-bottom: 0;
 }
 
+/* Long spec lists (more than 6) flow top-to-bottom into two columns so the card
+   doesn't grow much taller than cards with a short list */
+.card-columns .specs-section--wide {
+    flex: 2 1 400px;
+    min-width: 0;
+}
+
+.card-columns .specs-section--wide ~ .drawing-section {
+    flex: 1 1 240px;
+}
+
+.specs-section--wide .specs-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(var(--spec-rows, 6), auto);
+    column-gap: 1.5rem;
+}
+
+.specs-section--wide .spec-item {
+    padding: 0.45rem 0;
+    gap: 0.4rem;
+}
+
+.specs-section--wide .spec-label {
+    white-space: normal;
+    font-size: 0.74rem;
+    line-height: 1.2;
+}
+
+.specs-section--wide .spec-dots {
+    margin: 0 2px;
+    min-width: 4px;
+}
+
+.specs-section--wide .spec-value {
+    white-space: nowrap;
+    font-size: 0.8rem;
+}
+
 /* Header row: small product thumbnail + title/model */
 .card-header-row {
     display: flex;

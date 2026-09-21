@@ -7,6 +7,9 @@ let categoryOrder = [];
 let pageFlipInstance = null;
 let currentView = 'list'; // 'list' or 'flipbook'
 
+// More specs than this flow into two columns (list view and flipbook) so cards keep a similar height
+const SPECS_TWO_COL_THRESHOLD = 6;
+
 // Map to store the starting page index of each category in the flipbook
 let categoryPageMap = {};
 
@@ -335,6 +338,11 @@ function buildListProductBlock(cardData) {
 
     const specsList = document.createElement('div');
     specsList.className = 'specs-list';
+    // Long spec lists flow into two columns so every card keeps a similar height
+    if (specs.length > SPECS_TWO_COL_THRESHOLD) {
+        specsSection.classList.add('specs-section--wide');
+        specsList.style.setProperty('--spec-rows', String(Math.ceil(specs.length / 2)));
+    }
 
     if (specs.length > 0) {
         specs.forEach(spec => {
@@ -414,7 +422,14 @@ function buildFlipCardHtml(cardData, cat) {
     const photoCols = photoCount >= 4 ? 2 : 1;
     const photoRows = Math.ceil(photoCount / photoCols);
     const photoGap = 8;
-    const thumbCap = photoCount >= 4 ? 140 : photoCount > 1 ? 190 : 260;
+    const wideSpecs = specs.length > SPECS_TWO_COL_THRESHOLD;
+    // Two-column specs need horizontal room, so a lone photo is capped smaller next to them
+    const thumbCap = photoCount >= 4 ? 140 : photoCount > 1 ? 190 : wideSpecs ? 190 : 260;
+    const specRows = Math.ceil(specs.length / 2);
+    const specsListStyle = wideSpecs
+        ? `flex: 1 1 auto; min-height: 0; overflow: hidden; display: grid; grid-auto-flow: column; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(${specRows}, auto); align-content: center; column-gap: 1.25rem; row-gap: clamp(4px, 2%, 10px);`
+        : 'flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: clamp(5px, 3%, 16px);';
+    const specFont = wideSpecs ? 0.66 : 0.72;
     const thumbsHtml = cardData.members.map(member => `
         <div class="product-thumb" style="width: 100%; height: 100%; padding: 0.5rem; box-sizing: border-box;">
             <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="this.parentNode.style.display='none'">
@@ -435,14 +450,14 @@ function buildFlipCardHtml(cardData, cat) {
             <div style="display: flex; gap: 1.75rem; align-items: stretch; flex: 1 1 0; min-height: 0; overflow: hidden; box-sizing: border-box;">
                 <div class="product-thumb-group" style="${thumbGroupStyle}">${thumbsHtml}</div>
 
-                <div style="flex: 1 1 280px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
+                <div style="flex: ${wideSpecs ? '2 1 420px' : '1 1 280px'}; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
                     <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 5px;">ESPECIFICACIONES TÉCNICAS</h4>
-                    <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: clamp(5px, 3%, 16px);">
-                        ${specs.length > 0 ? specs.slice(0, 6).map(spec => `
-                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.4rem; padding: 0; border: 0; line-height: 1.2; flex-shrink: 0;">
-                                <span style="font-family: var(--font-sans); font-weight: 600; font-size: 0.72rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
-                                <span style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 6px;"></span>
-                                <span style="font-family: var(--font-sans); font-size: 0.74rem; color: var(--sielu-text-dark); text-align: right; white-space: nowrap;">${spec.value}</span>
+                    <div style="${specsListStyle}">
+                        ${specs.length > 0 ? specs.slice(0, 12).map(spec => `
+                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.4rem; padding: 0; border: 0; line-height: 1.15; flex-shrink: 0; min-width: 0;">
+                                <span style="font-family: var(--font-sans); font-weight: 600; font-size: ${specFont}rem; color: var(--sielu-text-dark); text-transform: uppercase; ${wideSpecs ? '' : 'white-space: nowrap;'}">${spec.label}</span>
+                                <span style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 6px; min-width: 6px;"></span>
+                                <span style="font-family: var(--font-sans); font-size: ${specFont + 0.02}rem; color: var(--sielu-text-dark); text-align: right; min-width: 0;">${spec.value}</span>
                             </div>
                         `).join('') : `
                             <div style="font-family: var(--font-sans); font-size: 0.74rem; color: #888; font-style: italic; line-height: 1.2;">Sin especificaciones disponibles</div>
