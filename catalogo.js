@@ -387,7 +387,7 @@ function buildListProductBlock(cardData) {
 
         const drawingTitle = document.createElement('h4');
         drawingTitle.className = 'section-title';
-        drawingTitle.textContent = 'GRÁFICO DE DIMENSIONES';
+        drawingTitle.textContent = 'DIMENSIONES';
         drawingSection.appendChild(drawingTitle);
 
         const drawingContainer = document.createElement('div');
@@ -402,11 +402,6 @@ function buildListProductBlock(cardData) {
         drawingContainer.appendChild(drawingImg);
 
         drawingSection.appendChild(drawingContainer);
-
-        const drawingNote = document.createElement('p');
-        drawingNote.className = 'drawing-note';
-        drawingNote.textContent = '*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*';
-        drawingSection.appendChild(drawingNote);
 
         columns.appendChild(drawingSection);
     }
@@ -472,12 +467,10 @@ function buildFlipCardHtml(cardData, cat) {
 
                 ${representative.dibujo ? `
                 <div style="flex: 1 1 260px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
-                    <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase;">GRÁFICO DE DIMENSIONES</h4>
+                    <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase;">DIMENSIONES</h4>
                     <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 4px; box-sizing: border-box;">
                         <img src="${representative.dibujo}" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
-                    </div>
-                    <p style="font-family: var(--font-sans); font-size: 0.6rem; font-style: italic; color: var(--sielu-text-muted); text-align: right; margin: 4px 0 0; line-height: 1.1; flex-shrink: 0;">*Dimensiones referenciales del cuerpo; consulte opciones de tapa.*</p>
-                </div>
+                    </div>                </div>
                 ` : ''}
             </div>
         </div>

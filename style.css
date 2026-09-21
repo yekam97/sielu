@@ -1451,14 +1451,6 @@ textarea {
     filter: contrast(1.1);
 }
 
-.drawing-note {
-    font-family: var(--font-sans);
-    font-size: 0.68rem;
-    font-style: italic;
-    color: var(--sielu-text-muted);
-    text-align: right;
-    margin-top: 0.5rem;
-}
 
 /* RESPONSIVE DESIGN */
 @media (max-width: 992px) {
