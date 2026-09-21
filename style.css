@@ -1254,6 +1254,22 @@ textarea {
     height: 118px;
 }
 
+/* 2-3 merged products stack vertically; 4+ form a 2-column grid (quadrant) */
+.product-thumb-group[data-layout="stack"] {
+    flex-direction: column;
+    flex-wrap: nowrap;
+}
+
+.product-thumb-group[data-layout="grid"] {
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+}
+
+.card-photos .product-thumb-group[data-count="3"] .product-thumb {
+    width: 96px;
+    height: 96px;
+}
+
 .card-columns .specs-section,
 .card-columns .drawing-section {
     flex: 1 1 280px;
@@ -1386,22 +1402,6 @@ textarea {
     padding: 0.55rem 0;
     border-bottom: 1px solid #ece8df;
     gap: 0.6rem;
-}
-
-.spec-icon {
-    flex-shrink: 0;
-    width: 17px;
-    height: 17px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--sielu-gold);
-}
-
-.spec-icon svg {
-    width: 100%;
-    height: 100%;
-    display: block;
 }
 
 .spec-label {

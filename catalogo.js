@@ -35,31 +35,6 @@ function parseSpecifications(specsText, item) {
     return specs;
 }
 
-// Return an inline SVG icon matching a spec label's meaning (falls back to a generic dot)
-function getSpecIcon(label) {
-    const key = (label || '').toUpperCase();
-    const stroke = 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';
-    const icons = {
-        lamp: `<svg viewBox="0 0 24 24" ${stroke}><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.45 1.1 1.2 1.1 2.2h5c0-1 .5-1.75 1.1-2.2A6 6 0 0 0 12 3Z"/></svg>`,
-        material: `<svg viewBox="0 0 24 24" ${stroke}><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`,
-        ip: `<svg viewBox="0 0 24 24" ${stroke}><path d="M12 3 4 6v6c0 4.4 3.4 8.5 8 9 4.6-.5 8-4.6 8-9V6l-8-3Z"/></svg>`,
-        color: `<svg viewBox="0 0 24 24" ${stroke}><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4c1.7 0 3.1-1.4 3.1-3.1C20.5 6.6 16.7 3 12 3Z"/><circle cx="7.5" cy="10.5" r=".8" fill="currentColor" stroke="none"/><circle cx="11" cy="7" r=".8" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8" r=".8" fill="currentColor" stroke="none"/></svg>`,
-        temp: `<svg viewBox="0 0 24 24" ${stroke}><path d="M12 14.5V5a2 2 0 1 0-4 0v9.5a4 4 0 1 0 4 0Z"/></svg>`,
-        warranty: `<svg viewBox="0 0 24 24" ${stroke}><circle cx="12" cy="9" r="5"/><path d="m8.2 13.5-1.7 6.8 5-2.6 5 2.6-1.7-6.8"/></svg>`,
-        dimension: `<svg viewBox="0 0 24 24" ${stroke}><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 8h4M20 16h-4M12 3v4M12 20v-4"/></svg>`,
-        default: `<svg viewBox="0 0 24 24" ${stroke}><circle cx="12" cy="12" r="4"/></svg>`
-    };
-
-    if (/(LAMP|LÁMP|LUZ|LED)/.test(key)) return icons.lamp;
-    if (/MATERIAL/.test(key)) return icons.material;
-    if (/(IP|PROTECC)/.test(key)) return icons.ip;
-    if (/TEMP/.test(key)) return icons.temp;
-    if (/COLOR/.test(key)) return icons.color;
-    if (/GARANT/.test(key)) return icons.warranty;
-    if (/(DIMENS|MEDID|TAMA)/.test(key)) return icons.dimension;
-    return icons.default;
-}
-
 // Build the "CODE1 / CODE2" markup, prefixing each code with a colored dot when that
 // member has a ColorSwatch assigned (set per-product in the configurador, so a group of
 // merged products can show a different color next to each of its codes).
@@ -331,6 +306,10 @@ function buildListProductBlock(cardData) {
 
     const thumbGroup = document.createElement('div');
     thumbGroup.className = 'product-thumb-group';
+    // 1 photo: single · 2-3: stacked vertically · 4+: 2-column grid ("quadrant")
+    const photoCount = cardData.members.length;
+    thumbGroup.dataset.layout = photoCount >= 4 ? 'grid' : photoCount > 1 ? 'stack' : 'single';
+    thumbGroup.dataset.count = String(photoCount);
     cardData.members.forEach(member => {
         const thumbWrap = document.createElement('div');
         thumbWrap.className = 'product-thumb';
@@ -362,7 +341,6 @@ function buildListProductBlock(cardData) {
             const itemEl = document.createElement('div');
             itemEl.className = 'spec-item';
             itemEl.innerHTML = `
-                <span class="spec-icon">${getSpecIcon(spec.label)}</span>
                 <span class="spec-label">${spec.label}</span>
                 <span class="spec-dots"></span>
                 <span class="spec-value">${spec.value}</span>
@@ -429,12 +407,20 @@ const FLIP_MIN_WIDTH = 800;
 function buildFlipCardHtml(cardData, cat) {
     const representative = cardData.members[0];
     const specs = parseSpecifications(representative.especificaciones, representative);
-    const thumbMaxSize = cardData.members.length > 1 ? 200 : 260;
+    // Photo layout: 1 photo single · 2-3 stacked vertically · 4+ in a 2-column grid. The group's
+    // overall aspect-ratio (cols/rows) is derived from its definite height, so the square thumbs
+    // scale with the row's real height without needing precomputed pixel sizes.
+    const photoCount = cardData.members.length;
+    const photoCols = photoCount >= 4 ? 2 : 1;
+    const photoRows = Math.ceil(photoCount / photoCols);
+    const photoGap = 8;
+    const thumbCap = photoCount >= 4 ? 140 : photoCount > 1 ? 190 : 260;
     const thumbsHtml = cardData.members.map(member => `
-        <div class="product-thumb" style="width: min(100%, ${thumbMaxSize}px); height: min(100%, ${thumbMaxSize}px); aspect-ratio: 1; padding: 0.6rem; box-sizing: border-box;">
+        <div class="product-thumb" style="width: 100%; height: 100%; padding: 0.5rem; box-sizing: border-box;">
             <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="this.parentNode.style.display='none'">
         </div>
     `).join('');
+    const thumbGroupStyle = `flex: 0 0 auto; height: 100%; aspect-ratio: ${photoCols} / ${photoRows}; max-height: ${thumbCap * photoRows + photoGap * (photoRows - 1)}px; overflow: hidden; display: grid; grid-template-columns: repeat(${photoCols}, minmax(0, 1fr)); grid-template-rows: repeat(${photoRows}, minmax(0, 1fr)); gap: ${photoGap}px; align-self: center;`;
 
     return `
         <div style="height: 100%; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column;">
@@ -447,14 +433,13 @@ function buildFlipCardHtml(cardData, cat) {
             </div>
 
             <div style="display: flex; gap: 1.75rem; align-items: stretch; flex: 1 1 0; min-height: 0; overflow: hidden; box-sizing: border-box;">
-                <div class="product-thumb-group" style="flex: 0 0 auto; height: 100%; overflow: hidden; gap: 0.6rem; align-items: center;">${thumbsHtml}</div>
+                <div class="product-thumb-group" style="${thumbGroupStyle}">${thumbsHtml}</div>
 
                 <div style="flex: 1 1 280px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
                     <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 5px;">ESPECIFICACIONES TÉCNICAS</h4>
                     <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: clamp(5px, 3%, 16px);">
                         ${specs.length > 0 ? specs.slice(0, 6).map(spec => `
                             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.4rem; padding: 0; border: 0; line-height: 1.2; flex-shrink: 0;">
-                                <span style="width: 15px; height: 15px; flex-shrink: 0; color: var(--sielu-gold); display: flex;">${getSpecIcon(spec.label)}</span>
                                 <span style="font-family: var(--font-sans); font-weight: 600; font-size: 0.72rem; color: var(--sielu-text-dark); text-transform: uppercase; white-space: nowrap;">${spec.label}</span>
                                 <span style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 6px;"></span>
                                 <span style="font-family: var(--font-sans); font-size: 0.74rem; color: var(--sielu-text-dark); text-align: right; white-space: nowrap;">${spec.value}</span>
@@ -470,7 +455,8 @@ function buildFlipCardHtml(cardData, cat) {
                     <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase;">DIMENSIONES</h4>
                     <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 4px; box-sizing: border-box;">
                         <img src="${representative.dibujo}" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="this.parentNode.parentNode.style.display='none'">
-                    </div>                </div>
+                    </div>
+                </div>
                 ` : ''}
             </div>
         </div>
