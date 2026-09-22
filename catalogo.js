@@ -14,10 +14,54 @@ const SPECS_TWO_COL_THRESHOLD = 6;
 let categoryPageMap = {};
 
 // Product images live on free third-party hosts (catbox.moe, etc.) that reset connections
-// (ERR_HTTP2_PROTOCOL_ERROR) when many requests arrive at once. A single failed request must not
-// make a photo or drawing vanish for good, so failed images are retried a few times with a
-// growing, jittered delay before giving up and hiding them.
+// (ERR_HTTP2_PROTOCOL_ERROR) when many requests arrive at once. Two defenses:
+//  1. A small download queue: images only start loading once they are near the viewport, and at
+//     most IMG_MAX_CONCURRENT are in flight at a time (native loading="lazy" can't cap that).
+//  2. A failed image is retried a few times with a growing, jittered delay (through the same
+//     queue) before giving up and hiding it, so one dropped connection never removes a photo.
+const IMG_MAX_CONCURRENT = 6;
 const IMG_MAX_RETRIES = 3;
+const IMG_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+let imgActive = 0;
+const imgQueue = [];
+
+function pumpImages() {
+    while (imgActive < IMG_MAX_CONCURRENT && imgQueue.length) {
+        const img = imgQueue.shift();
+        if (!img.isConnected) continue;
+        imgActive++;
+        let settled = false;
+        const settle = () => {
+            if (settled) return;
+            settled = true;
+            imgActive--;
+            pumpImages();
+        };
+        img.addEventListener('load', settle, { once: true });
+        img.addEventListener('error', settle, { once: true });
+        img.src = img.dataset.src;
+    }
+}
+
+const imgObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        imgObserver.unobserve(entry.target);
+        imgQueue.push(entry.target);
+    });
+    pumpImages();
+}, { rootMargin: '600px' });
+
+// Show a transparent placeholder now and load the real image when it nears the viewport.
+function lazyImage(img, src) {
+    img.src = IMG_PLACEHOLDER;
+    img.dataset.src = src;
+    imgObserver.observe(img);
+}
+
+function observePageImages(root) {
+    root.querySelectorAll('img[data-src]').forEach(img => imgObserver.observe(img));
+}
 
 function retryImage(img, onGiveUp) {
     const tries = Number(img.dataset.retries || 0);
@@ -28,9 +72,8 @@ function retryImage(img, onGiveUp) {
     img.dataset.retries = String(tries + 1);
     const delay = 700 * (tries + 1) + Math.random() * 700;
     setTimeout(() => {
-        const src = img.getAttribute('src');
-        img.removeAttribute('src');
-        img.setAttribute('src', src);
+        imgQueue.push(img);
+        pumpImages();
     }, delay);
 }
 
@@ -344,9 +387,8 @@ function buildListProductBlock(cardData) {
         const thumbWrap = document.createElement('div');
         thumbWrap.className = 'product-thumb';
         const thumbImg = document.createElement('img');
-        thumbImg.loading = 'lazy';
-        thumbImg.src = member.img || member.imgContexto || '';
         thumbImg.alt = member.nombre;
+        lazyImage(thumbImg, member.img || member.imgContexto || '');
         thumbImg.onerror = () => retryImage(thumbImg, () => { thumbWrap.style.display = 'none'; });
         thumbWrap.appendChild(thumbImg);
         thumbGroup.appendChild(thumbWrap);
@@ -408,9 +450,8 @@ function buildListProductBlock(cardData) {
 
         const drawingImg = document.createElement('img');
         drawingImg.className = 'drawing-img';
-        drawingImg.loading = 'lazy';
-        drawingImg.src = representative.dibujo;
         drawingImg.alt = `Dimensiones de ${cardData.nombre}`;
+        lazyImage(drawingImg, representative.dibujo);
         drawingImg.onerror = () => retryImage(drawingImg, () => { drawingSection.style.display = 'none'; });
         drawingContainer.appendChild(drawingImg);
 
@@ -459,7 +500,7 @@ function buildFlipCardHtml(cardData, cat) {
     const specFont = wideSpecs ? 0.66 : 0.72;
     const thumbsHtml = cardData.members.map(member => `
         <div class="product-thumb" style="width: 100%; height: 100%; padding: 0.5rem; box-sizing: border-box;">
-            <img src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" loading="lazy" onerror="window.sieluRetryImg(this, 'thumb')">
+            <img src="${IMG_PLACEHOLDER}" data-src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="window.sieluRetryImg(this, 'thumb')">
         </div>
     `).join('');
     const thumbGroupStyle = `flex: 0 0 auto; height: 100%; aspect-ratio: ${photoCols} / ${photoRows}; max-height: ${thumbCap * photoRows + photoGap * (photoRows - 1)}px; overflow: hidden; display: grid; grid-template-columns: repeat(${photoCols}, minmax(0, 1fr)); grid-template-rows: repeat(${photoRows}, minmax(0, 1fr)); gap: ${photoGap}px; align-self: center;`;
@@ -496,7 +537,7 @@ function buildFlipCardHtml(cardData, cat) {
                 <div style="flex: 1 1 260px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
                     <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase;">DIMENSIONES</h4>
                     <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 4px; box-sizing: border-box;">
-                        <img src="${representative.dibujo}" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" loading="lazy" onerror="window.sieluRetryImg(this, 'drawing')">
+                        <img src="${IMG_PLACEHOLDER}" data-src="${representative.dibujo}" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="window.sieluRetryImg(this, 'drawing')">
                     </div>
                 </div>
                 ` : ''}
@@ -506,8 +547,36 @@ function buildFlipCardHtml(cardData, cat) {
 }
 
 // RENDER FLIPBOOK VIEW (Landscape Layout to match List view card)
+// PageFlip's destroy() removes the container element from the DOM, so it must be recreated
+// before each render (opening the flipbook a second time used to crash on a null container).
+function getBookContainer() {
+    let container = document.getElementById('bookContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'container--book';
+        container.id = 'bookContainer';
+        document.querySelector('#flipbookMain .book-viewport').appendChild(container);
+    }
+    return container;
+}
+
+function destroyPageFlip() {
+    if (pageFlipInstance) {
+        pageFlipInstance.destroy();
+        pageFlipInstance = null;
+    }
+}
+
+// Tear down any previous book first (destroy() would otherwise remove the freshly rendered
+// pages along with the container), then render and initialize.
+function rebuildFlipbook() {
+    destroyPageFlip();
+    renderFlipbook();
+    initPageFlip();
+}
+
 function renderFlipbook() {
-    const container = document.getElementById('bookContainer');
+    const container = getBookContainer();
     container.innerHTML = '';
     categoryPageMap = {};
 
@@ -595,6 +664,7 @@ function renderFlipbook() {
                 </div>
             `;
             container.appendChild(page);
+            observePageImages(page);
             pageIndex++;
         }
     });
@@ -618,11 +688,7 @@ function renderFlipbook() {
 
 // INITIALIZE PAGEFLIP
 function initPageFlip() {
-    if (pageFlipInstance) {
-        pageFlipInstance.destroy();
-    }
-    
-    const container = document.getElementById('bookContainer');
+    const container = getBookContainer();
     const pages = container.querySelectorAll('.page');
     
     pageFlipInstance = new PageFlip(container, {
@@ -777,8 +843,7 @@ if (viewToggleBtn) {
             viewToggleIcon.textContent = '📋';
             
             // Render and initialize flipbook
-            renderFlipbook();
-            initPageFlip();
+            rebuildFlipbook();
         } else {
             currentView = 'list';
             flipbookMain.style.display = 'none';
@@ -786,11 +851,8 @@ if (viewToggleBtn) {
             viewToggleText.textContent = 'Vista Flipbook';
             viewToggleIcon.textContent = '📖';
             
-            if (pageFlipInstance) {
-                pageFlipInstance.destroy();
-                pageFlipInstance = null;
-            }
-            
+            destroyPageFlip();
+
             // Re-render list to ensure sync
             renderCatalog();
         }
@@ -802,8 +864,7 @@ document.getElementById('searchInput').addEventListener('input', () => {
     if (currentView === 'list') {
         renderCatalog();
     } else {
-        renderFlipbook();
-        initPageFlip();
+        rebuildFlipbook();
     }
 });
 
