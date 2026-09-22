@@ -4,6 +4,7 @@ import { PageFlip } from "page-flip";
 
 let allProducts = [];
 let categoryOrder = [];
+let categoryImages = {}; // { categoryName: coverImageUrl }, set in the configurador
 let pageFlipInstance = null;
 let currentView = 'list'; // 'list' or 'flipbook'
 
@@ -132,6 +133,7 @@ async function fetchProducts() {
         querySnapshot.forEach((doc) => {
             if (doc.id === "--category-config--") {
                 categoryOrder = doc.data().order || [];
+                categoryImages = doc.data().images || {};
                 return;
             }
 
@@ -310,11 +312,35 @@ function renderCatalog() {
         section.className = 'catalog-category-section';
         section.id = catId;
 
-        // Section Title
-        const title = document.createElement('h2');
-        title.className = 'catalog-category-title';
-        title.textContent = cat;
-        section.appendChild(title);
+        // Section Title (a cover banner with the category's image when one has been set)
+        const coverImage = categoryImages[cat];
+        if (coverImage) {
+            const cover = document.createElement('div');
+            cover.className = 'catalog-category-cover';
+
+            const coverImg = document.createElement('img');
+            coverImg.className = 'catalog-category-cover-img';
+            coverImg.alt = cat;
+            coverImg.loading = 'lazy';
+            coverImg.onerror = () => { cover.style.display = 'none'; };
+            lazyImage(coverImg, coverImage);
+            cover.appendChild(coverImg);
+
+            const coverOverlay = document.createElement('div');
+            coverOverlay.className = 'catalog-category-cover-overlay';
+            const coverTitle = document.createElement('h2');
+            coverTitle.className = 'catalog-category-cover-title';
+            coverTitle.textContent = cat;
+            coverOverlay.appendChild(coverTitle);
+            cover.appendChild(coverOverlay);
+
+            section.appendChild(cover);
+        } else {
+            const title = document.createElement('h2');
+            title.className = 'catalog-category-title';
+            title.textContent = cat;
+            section.appendChild(title);
+        }
 
         // Cards Grid
         const grid = document.createElement('div');
@@ -643,8 +669,28 @@ function renderFlipbook() {
 
     // 3. Product Pages (two products per page: one on top, one below — groups count as one slot)
     sortedCategories.forEach(cat => {
-        // Map category starting page
+        // Map category starting page — the cover page when there is one, else the first product page
         categoryPageMap[cat] = pageIndex;
+
+        const coverImage = categoryImages[cat];
+        if (coverImage) {
+            const coverPageEl = document.createElement('div');
+            coverPageEl.className = 'page';
+            coverPageEl.style.width = `${FLIP_PAGE_W}px`;
+            coverPageEl.style.height = `${FLIP_PAGE_H}px`;
+            coverPageEl.style.padding = '0';
+            coverPageEl.innerHTML = `
+                <div class="page-content" style="height: 100%; position: relative; overflow: hidden;">
+                    <img src="${IMG_PLACEHOLDER}" data-src="${coverImage}" alt="${cat}" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" onerror="this.style.display='none'">
+                    <div style="position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 3rem; box-sizing: border-box; background: linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%);">
+                        <h2 style="font-family: var(--font-sans); font-size: 2.75rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.08em; margin: 0; text-shadow: 0 2px 10px rgba(0,0,0,0.35);">${cat}</h2>
+                    </div>
+                </div>
+            `;
+            container.appendChild(coverPageEl);
+            observePageImages(coverPageEl);
+            pageIndex++;
+        }
 
         const cardItems = mergeGroupedItems(grouped[cat]);
         for (let i = 0; i < cardItems.length; i += 2) {

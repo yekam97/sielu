@@ -1,4 +1,4 @@
-import { collection, getDocs, query, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, query, doc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "./firebase-config.js";
 
 const PASSWORD = "Sielu2026";
@@ -12,6 +12,7 @@ const selectionBar = document.getElementById('selectionBar');
 
 let allProducts = [];
 let categoryOrder = [];
+let categoryImages = {}; // { categoryName: coverImageUrl }
 const selectedIds = new Set();
 
 function authenticate() {
@@ -41,10 +42,12 @@ async function fetchProducts() {
         const snapshot = await getDocs(query(collection(db, 'productos_sielu')));
         allProducts = [];
         categoryOrder = [];
+        categoryImages = {};
 
         snapshot.forEach(productDoc => {
             if (productDoc.id === '--category-config--') {
                 categoryOrder = productDoc.data().order || [];
+                categoryImages = productDoc.data().images || {};
                 return;
             }
 
@@ -217,6 +220,63 @@ function buildColorInput(product) {
     return input;
 }
 
+// URL field for a category's cover image (shown as a full page in catalogo.html's list and
+// flipbook views). Saved as a full rewrite of the images map — instead of relying on Firestore's
+// dot-path/merge semantics for a nested field — so it can't accidentally clobber other categories'
+// images or the category order stored in the same document.
+function buildCategoryImageField(category) {
+    const wrap = document.createElement('div');
+    wrap.className = 'catalog-config-category-image';
+
+    const label = document.createElement('span');
+    label.textContent = 'Imagen de portada de la categoría (se muestra como una página con el nombre de la categoría)';
+    wrap.appendChild(label);
+
+    const row = document.createElement('div');
+    row.className = 'catalog-config-category-image-row';
+
+    const preview = document.createElement('img');
+    preview.className = 'catalog-config-category-image-preview';
+    preview.alt = category;
+    preview.src = categoryImages[category] || '';
+    preview.hidden = !categoryImages[category];
+    preview.onerror = () => { preview.hidden = true; };
+    row.appendChild(preview);
+
+    const input = document.createElement('input');
+    input.type = 'url';
+    input.placeholder = 'https://...';
+    input.value = categoryImages[category] || '';
+    row.appendChild(input);
+
+    const feedback = document.createElement('span');
+    feedback.className = 'catalog-config-feedback';
+    row.appendChild(feedback);
+
+    input.addEventListener('change', async () => {
+        const url = input.value.trim();
+        feedback.textContent = 'Guardando...';
+        try {
+            const newImages = { ...categoryImages };
+            if (url) newImages[category] = url; else delete newImages[category];
+            await setDoc(doc(db, 'productos_sielu', '--category-config--'),
+                { order: categoryOrder, images: newImages }, { merge: true });
+            categoryImages = newImages;
+            preview.src = url;
+            preview.hidden = !url;
+            feedback.textContent = 'Guardado';
+        } catch (error) {
+            console.error('Error al guardar la imagen de categoría:', error);
+            feedback.textContent = 'No se pudo guardar';
+        } finally {
+            setTimeout(() => feedback.textContent = '', 2500);
+        }
+    });
+
+    wrap.appendChild(row);
+    return wrap;
+}
+
 async function removeFromGroup(product) {
     try {
         await updateDoc(doc(db, 'productos_sielu', product.id), { GrupoId: '', NombreCatalogo: '' });
@@ -257,6 +317,7 @@ function renderProducts() {
         const heading = document.createElement('h2');
         heading.textContent = category;
         section.appendChild(heading);
+        section.appendChild(buildCategoryImageField(category));
 
         const cards = mergeIntoCards(groups.get(category));
         cards.forEach(card => {
