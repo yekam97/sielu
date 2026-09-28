@@ -1141,11 +1141,13 @@ textarea {
     margin: 0.75rem 0 0;
 }
 
-/* Category cover banner (shown instead of the plain title when an image is set) */
+/* Category cover "page" (shown instead of the plain title when an image is set). Same width as
+   a product card and the same aspect ratio as a flipbook page (FLIP_PAGE_W/FLIP_PAGE_H in
+   catalogo.js, an 11x8.5in horizontal letter sheet) so it reads as a page, not a thin banner. */
 .catalog-category-cover {
     position: relative;
     width: 100%;
-    aspect-ratio: 21 / 7;
+    aspect-ratio: 1000 / 773;
     border-radius: 14px;
     overflow: hidden;
     margin-bottom: 2.5rem;
@@ -1179,12 +1181,6 @@ textarea {
     letter-spacing: 0.08em;
     margin: 0;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
-}
-
-@media (max-width: 768px) {
-    .catalog-category-cover {
-        aspect-ratio: 4 / 3;
-    }
 }
 
 /* Product Cards Grid */
