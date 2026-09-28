@@ -1,4 +1,4 @@
-import { collection, getDocs, query, doc, updateDoc, setDoc } from "firebase/firestore";
+import { collection, getDocs, query, doc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "./firebase-config.js";
 
 const PASSWORD = "Sielu2026";
@@ -221,9 +221,11 @@ function buildColorInput(product) {
 }
 
 // URL field for a category's cover image (shown as a full page in catalogo.html's list and
-// flipbook views). Saved as a full rewrite of the images map — instead of relying on Firestore's
-// dot-path/merge semantics for a nested field — so it can't accidentally clobber other categories'
-// images or the category order stored in the same document.
+// flipbook views). Updates only this one category's key via a dot-path field update — never the
+// whole images map — so it can't clobber other categories' images with a stale local snapshot.
+// Clearing the field uses deleteField(): setDoc/updateDoc with {merge:true} on a nested object
+// only ever adds/overwrites keys present in the payload, it never removes keys just by omitting
+// them, so writing images:{} would silently leave the old URL in place.
 function buildCategoryImageField(category) {
     const wrap = document.createElement('div');
     wrap.className = 'catalog-config-category-image';
@@ -257,11 +259,15 @@ function buildCategoryImageField(category) {
         const url = input.value.trim();
         feedback.textContent = 'Guardando...';
         try {
-            const newImages = { ...categoryImages };
-            if (url) newImages[category] = url; else delete newImages[category];
-            await setDoc(doc(db, 'productos_sielu', '--category-config--'),
-                { order: categoryOrder, images: newImages }, { merge: true });
-            categoryImages = newImages;
+            const configRef = doc(db, 'productos_sielu', '--category-config--');
+            const fieldPath = `images.${category}`;
+            if (url) {
+                await updateDoc(configRef, { [fieldPath]: url });
+                categoryImages[category] = url;
+            } else {
+                await updateDoc(configRef, { [fieldPath]: deleteField() });
+                delete categoryImages[category];
+            }
             preview.src = url;
             preview.hidden = !url;
             feedback.textContent = 'Guardado';
