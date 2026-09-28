@@ -1147,10 +1147,11 @@ textarea {
 .catalog-category-cover {
     position: relative;
     width: 100%;
+    max-width: 1050px;
+    margin: 0 auto 2.5rem;
     aspect-ratio: 1000 / 773;
     border-radius: 14px;
     overflow: hidden;
-    margin-bottom: 2.5rem;
     background-color: #f6f4ef;
 }
 
