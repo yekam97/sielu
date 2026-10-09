@@ -9,10 +9,12 @@ const errorMsg = document.getElementById('errorMsg');
 const configurator = document.getElementById('catalogConfigurator');
 const searchInput = document.getElementById('searchInput');
 const selectionBar = document.getElementById('selectionBar');
+const statusPanel = document.getElementById('catalogStatus');
 
 let allProducts = [];
 let categoryOrder = [];
 let categoryImages = {}; // { categoryName: coverImageUrl }
+let showOnlyPending = false;
 const selectedIds = new Set();
 
 function authenticate() {
@@ -64,11 +66,13 @@ async function fetchProducts() {
                 order: Number(data.Orden ?? data.orden ?? 0),
                 groupId: data.GrupoId || '',
                 catalogName: data.NombreCatalogo || '',
-                colorSwatch: data.ColorSwatch || ''
+                colorSwatch: data.ColorSwatch || '',
+                available: (data.Estado || 'Disponible') !== 'No disponible'
             });
         });
 
         await normalizeOrphanGroups();
+        renderStatusPanel();
         renderProducts();
     } catch (error) {
         console.error('Error al cargar productos:', error);
@@ -98,10 +102,63 @@ async function normalizeOrphanGroups() {
     }));
 }
 
+// Products set to "No disponible" in Administración never show in the visual catalog, so the
+// configurator hides them too (they stay in allProducts so group bookkeeping still sees them).
+// A product is "pending" when it is available but has no technical specifications loaded yet.
+function isPending(product) {
+    return product.available && !product.specifications.trim();
+}
+
+function renderStatusPanel() {
+    if (!statusPanel) return;
+    const available = allProducts.filter(p => p.available);
+    const pending = available.filter(isPending);
+    const hidden = allProducts.length - available.length;
+
+    statusPanel.innerHTML = '';
+    const stats = document.createElement('div');
+    stats.className = 'catalog-config-status-stats';
+    [
+        [available.length, 'disponibles en el catálogo'],
+        [available.length - pending.length, 'con información cargada'],
+        [pending.length, 'pendientes por cargar', pending.length > 0]
+    ].forEach(([value, label, warn]) => {
+        const stat = document.createElement('div');
+        stat.className = 'catalog-config-status-stat' + (warn ? ' is-pending' : '');
+        stat.innerHTML = '<strong></strong><span></span>';
+        stat.querySelector('strong').textContent = value;
+        stat.querySelector('span').textContent = label;
+        stats.appendChild(stat);
+    });
+    statusPanel.appendChild(stats);
+
+    const actions = document.createElement('div');
+    actions.className = 'catalog-config-status-actions';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'btn-primary';
+    toggle.textContent = showOnlyPending ? 'Ver todos los disponibles' : 'Ver solo pendientes';
+    toggle.disabled = pending.length === 0 && !showOnlyPending;
+    toggle.addEventListener('click', () => {
+        showOnlyPending = !showOnlyPending;
+        renderStatusPanel();
+        renderProducts();
+    });
+    actions.appendChild(toggle);
+    if (hidden > 0) {
+        const note = document.createElement('small');
+        note.textContent = `${hidden} producto${hidden === 1 ? '' : 's'} marcado${hidden === 1 ? '' : 's'} como "No disponible" en Administración no se muestra${hidden === 1 ? '' : 'n'} aquí ni en el catálogo.`;
+        actions.appendChild(note);
+    }
+    statusPanel.appendChild(actions);
+}
+
 function getOrderedGroups() {
     const filter = searchInput.value.trim().toLowerCase();
-    const products = allProducts.filter(product => !filter || [product.name, product.code, product.category]
-        .some(value => value.toLowerCase().includes(filter)));
+    const products = allProducts.filter(product => product.available
+        && (!showOnlyPending || isPending(product))
+        && (!filter || [product.name, product.code, product.category]
+            .some(value => value.toLowerCase().includes(filter))));
     const groups = new Map();
 
     products.forEach(product => {

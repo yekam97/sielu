@@ -162,7 +162,7 @@ async function fetchProducts() {
         });
 
         // Filter only available products
-        allProducts = allProducts.filter(item => item.estado === 'Disponible');
+        allProducts = allProducts.filter(item => item.estado !== 'No disponible');
 
         renderCatalog();
         setupScrollListener();
