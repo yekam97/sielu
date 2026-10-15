@@ -15,6 +15,8 @@ const statusPanel = document.getElementById('catalogStatus');
 let allProducts = [];
 let categoryOrder = [];
 let categoryImages = {}; // { categoryName: coverImageUrl }
+let categoryBackups = {}; // { categoryName: backup url of the cover }
+let categoryBackupOrigins = {}; // { categoryName: cover url the backup was made from }
 let showOnlyPending = false;
 let cloudinaryConfig = { cloudName: DEFAULT_CLOUD_NAME, uploadPreset: '' };
 const backupUploads = new Map(); // primary url -> Promise<backup url>, so shared images upload once
@@ -48,11 +50,15 @@ async function fetchProducts() {
         allProducts = [];
         categoryOrder = [];
         categoryImages = {};
+        categoryBackups = {};
+        categoryBackupOrigins = {};
 
         snapshot.forEach(productDoc => {
             if (productDoc.id === '--category-config--') {
                 categoryOrder = productDoc.data().order || [];
                 categoryImages = productDoc.data().images || {};
+                categoryBackups = productDoc.data().imagesRespaldo || {};
+                categoryBackupOrigins = productDoc.data().imagesRespaldoOrigen || {};
                 cloudinaryConfig = { cloudName: DEFAULT_CLOUD_NAME, uploadPreset: '', ...(productDoc.data().cloudinary || {}) };
                 return;
             }
@@ -166,7 +172,7 @@ function buildBackupPanel(available) {
     wrap.className = 'catalog-config-backup-panel';
 
     const configured = isBackupConfigured(cloudinaryConfig);
-    const pending = pendingBackups(available);
+    const pending = pendingBackups(available) + pendingCategoryBackups();
 
     const summary = document.createElement('div');
     summary.className = 'catalog-config-backup-summary';
@@ -252,7 +258,10 @@ function buildBackupPanel(available) {
 async function runBulkBackup(onProgress) {
     const jobs = [];
     allProducts.filter(p => p.available).forEach(product =>
-        BACKUP_FIELDS.forEach(f => { if (backupNeeded(product, f)) jobs.push({ product, f }); }));
+        BACKUP_FIELDS.forEach(f => { if (backupNeeded(product, f)) jobs.push(() => backupField(product, f)); }));
+    Object.keys(categoryImages).forEach(category => {
+        if (categoryBackupNeeded(category)) jobs.push(() => backupCategory(category));
+    });
 
     const state = { total: jobs.length, done: 0, failed: 0, firstError: '', aborted: false };
     let next = 0;
@@ -261,7 +270,7 @@ async function runBulkBackup(onProgress) {
         while (next < jobs.length && consecutive < 5) {
             const job = jobs[next++];
             try {
-                await backupField(job.product, job.f);
+                await job();
                 consecutive = 0;
                 state.done++;
             } catch (error) {
@@ -423,7 +432,11 @@ function buildCategoryImageField(category) {
     preview.alt = category;
     preview.src = categoryImages[category] || '';
     preview.hidden = !categoryImages[category];
-    preview.onerror = () => { preview.hidden = true; };
+    preview.onerror = () => {
+        const backup = categoryBackups[category];
+        if (backup && preview.src !== backup) preview.src = backup;
+        else preview.hidden = true;
+    };
     row.appendChild(preview);
 
     const input = document.createElement('input');
@@ -435,6 +448,73 @@ function buildCategoryImageField(category) {
     const feedback = document.createElement('span');
     feedback.className = 'catalog-config-feedback';
     row.appendChild(feedback);
+
+    // Backup of the cover: its own URL (editable by hand), a status badge and "Respaldar ahora".
+    const backupRow = document.createElement('div');
+    backupRow.className = 'catalog-config-category-image-row';
+
+    const backupLabel = document.createElement('span');
+    backupLabel.className = 'catalog-config-backup-title';
+    const badge = document.createElement('em');
+    badge.className = 'catalog-config-backup-badge';
+    backupLabel.append('Respaldo de la portada ', badge);
+
+    const backupInput = document.createElement('input');
+    backupInput.type = 'url';
+    backupInput.placeholder = 'https://... (se genera automáticamente)';
+
+    const backupButton = document.createElement('button');
+    backupButton.type = 'button';
+    backupButton.className = 'catalog-config-backup-btn';
+    backupButton.textContent = 'Respaldar ahora';
+
+    const backupFeedback = document.createElement('span');
+    backupFeedback.className = 'catalog-config-feedback';
+    backupRow.append(backupInput, backupButton, backupFeedback);
+
+    const refreshBackup = () => {
+        backupInput.value = categoryBackups[category] || '';
+        const status = categoryBackupStatus(category);
+        badge.textContent = status.text;
+        badge.className = 'catalog-config-backup-badge ' + status.cls;
+    };
+    refreshBackup();
+
+    const runBackup = async () => {
+        if (!isBackupConfigured(cloudinaryConfig)) {
+            backupFeedback.textContent = 'Configura Cloudinary (panel de arriba) para respaldar automáticamente.';
+            return;
+        }
+        if (!categoryBackupNeeded(category)) { refreshBackup(); return; }
+        backupButton.disabled = true;
+        backupFeedback.textContent = 'Respaldando imagen...';
+        try {
+            await backupCategory(category);
+            backupFeedback.textContent = 'Respaldo creado';
+        } catch (error) {
+            console.error('Error al respaldar la portada:', error);
+            backupFeedback.textContent = `No se pudo respaldar: ${error.message || error}`;
+        }
+        backupButton.disabled = false;
+        refreshBackup();
+        renderStatusPanel();
+        setTimeout(() => backupFeedback.textContent = '', 4000);
+    };
+    backupButton.addEventListener('click', runBackup);
+
+    backupInput.addEventListener('change', async () => {
+        backupFeedback.textContent = 'Guardando...';
+        try {
+            await saveCategoryBackup(category, backupInput.value.trim());
+            backupFeedback.textContent = 'Guardado';
+        } catch (error) {
+            console.error('Error al guardar el respaldo de la portada:', error);
+            backupFeedback.textContent = 'No se pudo guardar';
+        }
+        refreshBackup();
+        renderStatusPanel();
+        setTimeout(() => backupFeedback.textContent = '', 2500);
+    });
 
     input.addEventListener('change', async () => {
         const url = input.value.trim();
@@ -448,19 +528,25 @@ function buildCategoryImageField(category) {
             } else {
                 await updateDoc(configRef, { [fieldPath]: deleteField() });
                 delete categoryImages[category];
+                // Without a cover there is nothing to fall back for.
+                if (categoryBackups[category]) await saveCategoryBackup(category, '');
             }
             preview.src = url;
             preview.hidden = !url;
             feedback.textContent = 'Guardado';
+            refreshBackup();
+            renderStatusPanel();
         } catch (error) {
             console.error('Error al guardar la imagen de categoría:', error);
             feedback.textContent = 'No se pudo guardar';
         } finally {
             setTimeout(() => feedback.textContent = '', 2500);
         }
+        // New cover: back it up right away (doesn't block the save feedback above).
+        if (url && isBackupConfigured(cloudinaryConfig) && categoryBackupNeeded(category)) runBackup();
     });
 
-    wrap.appendChild(row);
+    wrap.append(row, backupLabel, backupRow);
     return wrap;
 }
 
@@ -570,6 +656,55 @@ async function backupProducts(products, fieldKeys = BACKUP_FIELDS.map(f => f.key
 function pendingBackups(products) {
     return products.reduce((sum, product) =>
         sum + BACKUP_FIELDS.filter(f => backupNeeded(product, f)).length, 0);
+}
+
+// Category cover backups live in the config doc as imagesRespaldo[category] (+ imagesRespaldoOrigen
+// with the cover URL they were made from). Written with dot-paths so other categories are untouched.
+function categoryBackupNeeded(category) {
+    const primary = categoryImages[category];
+    if (!primary || isCloudinaryUrl(primary)) return false;
+    return !(categoryBackups[category] && categoryBackupOrigins[category] === primary);
+}
+
+function categoryBackupStatus(category) {
+    const primary = categoryImages[category];
+    if (!primary) return { text: 'sin imagen', cls: 'is-none' };
+    if (isCloudinaryUrl(primary) && !categoryBackups[category]) return { text: 'ya está en Cloudinary', cls: 'is-ok' };
+    if (categoryBackups[category] && categoryBackupOrigins[category] === primary) return { text: 'respaldada', cls: 'is-ok' };
+    if (categoryBackups[category]) return { text: 'desactualizada', cls: 'is-pending' };
+    return { text: 'sin respaldo', cls: 'is-pending' };
+}
+
+function pendingCategoryBackups() {
+    return Object.keys(categoryImages).filter(categoryBackupNeeded).length;
+}
+
+async function saveCategoryBackup(category, url) {
+    const configRef = doc(db, 'productos_sielu', '--category-config--');
+    const backupPath = `imagesRespaldo.${category}`;
+    const originPath = `imagesRespaldoOrigen.${category}`;
+    if (url) {
+        const origin = categoryImages[category] || '';
+        await updateDoc(configRef, { [backupPath]: url, [originPath]: origin });
+        categoryBackups[category] = url;
+        categoryBackupOrigins[category] = origin;
+    } else {
+        await updateDoc(configRef, { [backupPath]: deleteField(), [originPath]: deleteField() });
+        delete categoryBackups[category];
+        delete categoryBackupOrigins[category];
+    }
+}
+
+async function backupCategory(category) {
+    if (!categoryBackupNeeded(category)) return false;
+    const primary = categoryImages[category];
+    if (!backupUploads.has(primary)) {
+        const upload = uploadToCloudinary(primary, cloudinaryConfig);
+        backupUploads.set(primary, upload);
+        upload.catch(() => backupUploads.delete(primary));
+    }
+    await saveCategoryBackup(category, await backupUploads.get(primary));
+    return true;
 }
 
 async function saveManualBackup(products, f, url) {

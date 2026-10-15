@@ -361,7 +361,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     const tocPage = pageNumber;
 
     categories.forEach((cat, catIndex) => {
-        const cover = images.get(`${cat.image}|cover`);
+        const cover = images.get(`${[].concat(cat.image || []).filter(Boolean)[0]}|cover`);
         doc.addPage([PAGE_W, PAGE_H], 'landscape');
         pageNumber++;
         tocEntries.push({ name: cat.name, page: pageNumber });

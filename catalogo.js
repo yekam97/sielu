@@ -5,6 +5,7 @@ import { PageFlip } from "page-flip";
 let allProducts = [];
 let categoryOrder = [];
 let categoryImages = {}; // { categoryName: coverImageUrl }, set in the configurador
+let categoryBackups = {}; // { categoryName: backup url of the cover }, used when the cover fails
 let pageFlipInstance = null;
 let currentView = 'list'; // 'list' or 'flipbook'
 
@@ -99,6 +100,10 @@ function photoSources(member) {
     return [member.img, member.imgRespaldo, member.imgContexto, member.imgContextoRespaldo];
 }
 
+function coverSources(category) {
+    return [categoryImages[category], categoryBackups[category]];
+}
+
 function drawingSources(member) {
     return [member.dibujo, member.dibujoRespaldo];
 }
@@ -134,6 +139,7 @@ function retryImage(img, onGiveUp) {
 // Used by the flipbook's inline onerror handlers; 'thumb' hides the thumbnail box, 'drawing'
 // hides the whole dimensions column once retries are exhausted.
 window.sieluRetryImg = (img, kind) => retryImage(img, () => {
+    if (kind === 'cover') { img.style.display = 'none'; return; }
     (kind === 'drawing' ? img.parentNode.parentNode : img.parentNode).style.display = 'none';
 });
 
@@ -187,6 +193,7 @@ async function fetchProducts() {
             if (doc.id === "--category-config--") {
                 categoryOrder = doc.data().order || [];
                 categoryImages = doc.data().images || {};
+                categoryBackups = doc.data().imagesRespaldo || {};
                 return;
             }
 
@@ -365,8 +372,8 @@ function renderCatalog() {
             coverImg.className = 'catalog-category-cover-img';
             coverImg.alt = cat;
             coverImg.loading = 'lazy';
-            coverImg.onerror = () => { cover.style.display = 'none'; };
-            lazyImage(coverImg, coverImage);
+            coverImg.onerror = () => retryImage(coverImg, () => { cover.style.display = 'none'; });
+            lazyImage(coverImg, coverSources(cat));
             cover.appendChild(coverImg);
 
             const coverOverlay = document.createElement('div');
@@ -727,7 +734,7 @@ function renderFlipbook() {
             coverPageEl.style.padding = '0';
             coverPageEl.innerHTML = `
                 <div class="page-content" style="height: 100%; position: relative; overflow: hidden;">
-                    <img src="${IMG_PLACEHOLDER}" data-src="${coverImage}" alt="${cat}" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" onerror="this.style.display='none'">
+                    <img src="${IMG_PLACEHOLDER}" ${imgSourceAttrs(coverSources(cat))} alt="${cat}" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" onerror="sieluRetryImg(this, 'cover')">
                     <div style="position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 3rem; box-sizing: border-box; background: linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%);">
                         <h2 style="font-family: var(--font-sans); font-size: 2.75rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.08em; margin: 0; text-shadow: 0 2px 10px rgba(0,0,0,0.35);">${cat}</h2>
                     </div>
@@ -980,7 +987,7 @@ function buildPdfModel() {
     const { grouped, sortedCategories } = getGroupedAndSortedItems(allProducts);
     return sortedCategories.map(cat => ({
         name: cat,
-        image: categoryImages[cat] || '',
+        image: uniqueSources(coverSources(cat)),
         cards: mergeGroupedItems(grouped[cat]).map(card => {
             const rep = card.members[0];
             return {
