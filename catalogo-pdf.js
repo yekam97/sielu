@@ -15,7 +15,7 @@ const GOLD = [168, 135, 79];
 const DARK = [26, 26, 26];
 const MUTED = [110, 110, 110];
 const LINE = [226, 220, 205];
-const CREAM = [250, 245, 238];
+const CREAM = [255, 255, 255]; // page background: white
 const TILE = [246, 244, 239];
 const BOX = [250, 248, 243];
 
