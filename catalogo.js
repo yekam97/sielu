@@ -69,10 +69,38 @@ const imgObserver = new IntersectionObserver(entries => {
 }, { rootMargin: '600px' });
 
 // Show a transparent placeholder now and load the real image when it nears the viewport.
-function lazyImage(img, src) {
+// `sources` is one URL or an ordered list (primary first, then backups); when a source fails the
+// next one is tried right away, before any retry delay.
+function lazyImage(img, sources) {
+    const list = uniqueSources(sources);
     img.src = IMG_PLACEHOLDER;
-    img.dataset.src = src;
+    img.dataset.src = list[0] || '';
+    if (list.length > 1) img.dataset.alts = JSON.stringify(list.slice(1));
     imgObserver.observe(img);
+}
+
+function uniqueSources(sources) {
+    return [...new Set([].concat(sources || []).filter(Boolean))];
+}
+
+function escapeAttr(value) {
+    return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// data-src / data-alts attributes for markup-built (flipbook) images
+function imgSourceAttrs(sources) {
+    const list = uniqueSources(sources);
+    return `data-src="${escapeAttr(list[0] || '')}"` +
+        (list.length > 1 ? ` data-alts="${escapeAttr(JSON.stringify(list.slice(1)))}"` : '');
+}
+
+// Photo shown for a product: its photo, that photo's backup, then the context image and its backup.
+function photoSources(member) {
+    return [member.img, member.imgRespaldo, member.imgContexto, member.imgContextoRespaldo];
+}
+
+function drawingSources(member) {
+    return [member.dibujo, member.dibujoRespaldo];
 }
 
 function observePageImages(root) {
@@ -80,6 +108,16 @@ function observePageImages(root) {
 }
 
 function retryImage(img, onGiveUp) {
+    // A backup link is tried immediately, before spending retries on the failing source.
+    const alts = img.dataset.alts ? JSON.parse(img.dataset.alts) : [];
+    if (alts.length) {
+        img.dataset.src = alts.shift();
+        img.dataset.alts = JSON.stringify(alts);
+        img.dataset.retries = '0';
+        imgQueue.push(img);
+        pumpImages();
+        return;
+    }
     const tries = Number(img.dataset.retries || 0);
     if (tries >= IMG_MAX_RETRIES) {
         onGiveUp();
@@ -170,6 +208,9 @@ async function fetchProducts() {
                 especificaciones: data.Especificaciones || '',
                 imgContexto: data.ImgContexto || '',
                 dibujo: data.Dibujo || '',
+                imgRespaldo: data.ImagenRespaldo || '',
+                imgContextoRespaldo: data.ImgContextoRespaldo || '',
+                dibujoRespaldo: data.DibujoRespaldo || '',
                 grupoId: data.GrupoId || '',
                 nombreCatalogo: data.NombreCatalogo || '',
                 colorSwatch: data.ColorSwatch || ''
@@ -417,7 +458,7 @@ function buildListProductBlock(cardData) {
         thumbWrap.className = 'product-thumb';
         const thumbImg = document.createElement('img');
         thumbImg.alt = member.nombre;
-        lazyImage(thumbImg, member.img || member.imgContexto || '');
+        lazyImage(thumbImg, photoSources(member));
         thumbImg.onerror = () => retryImage(thumbImg, () => { thumbWrap.style.display = 'none'; });
         thumbWrap.appendChild(thumbImg);
         thumbGroup.appendChild(thumbWrap);
@@ -480,7 +521,7 @@ function buildListProductBlock(cardData) {
         const drawingImg = document.createElement('img');
         drawingImg.className = 'drawing-img';
         drawingImg.alt = `Dimensiones de ${cardData.nombre}`;
-        lazyImage(drawingImg, representative.dibujo);
+        lazyImage(drawingImg, drawingSources(representative));
         drawingImg.onerror = () => retryImage(drawingImg, () => { drawingSection.style.display = 'none'; });
         drawingContainer.appendChild(drawingImg);
 
@@ -529,7 +570,7 @@ function buildFlipCardHtml(cardData, cat) {
     const specFont = wideSpecs ? 0.66 : 0.72;
     const thumbsHtml = cardData.members.map(member => `
         <div class="product-thumb" style="width: 100%; height: 100%; padding: 0.5rem; box-sizing: border-box;">
-            <img src="${IMG_PLACEHOLDER}" data-src="${member.img || member.imgContexto || ''}" alt="${member.nombre}" onerror="window.sieluRetryImg(this, 'thumb')">
+            <img src="${IMG_PLACEHOLDER}" ${imgSourceAttrs(photoSources(member))} alt="${member.nombre}" onerror="window.sieluRetryImg(this, 'thumb')">
         </div>
     `).join('');
     const thumbGroupStyle = `flex: 0 0 auto; height: 100%; aspect-ratio: ${photoCols} / ${photoRows}; max-height: ${thumbCap * photoRows + photoGap * (photoRows - 1)}px; overflow: hidden; display: grid; grid-template-columns: repeat(${photoCols}, minmax(0, 1fr)); grid-template-rows: repeat(${photoRows}, minmax(0, 1fr)); gap: ${photoGap}px; align-self: center;`;
@@ -566,7 +607,7 @@ function buildFlipCardHtml(cardData, cat) {
                 <div style="flex: 1 1 260px; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
                     <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase;">DIMENSIONES</h4>
                     <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; padding: 4px; box-sizing: border-box;">
-                        <img src="${IMG_PLACEHOLDER}" data-src="${representative.dibujo}" style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="window.sieluRetryImg(this, 'drawing')">
+                        <img src="${IMG_PLACEHOLDER}" ${imgSourceAttrs(drawingSources(representative))} style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="window.sieluRetryImg(this, 'drawing')">
                     </div>
                 </div>
                 ` : ''}
@@ -945,9 +986,9 @@ function buildPdfModel() {
             return {
                 title: card.nombre,
                 codes: card.members.filter(m => m.codigo).map(m => ({ code: m.codigo, color: m.colorSwatch })),
-                photos: card.members.map(m => m.img || m.imgContexto).filter(Boolean),
+                photos: card.members.map(m => uniqueSources(photoSources(m))).filter(list => list.length),
                 specs: parseSpecifications(rep.especificaciones, rep),
-                drawing: rep.dibujo
+                drawing: uniqueSources(drawingSources(rep))
             };
         })
     }));

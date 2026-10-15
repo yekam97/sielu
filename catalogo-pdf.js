@@ -74,16 +74,22 @@ async function loadAndEncode(url, { maxDim, cropRatio }) {
     return { data: canvas.toDataURL('image/jpeg', 0.82), w, h };
 }
 
-function fetchImage(url, options) {
-    if (!url) return Promise.resolve(null);
-    const key = `${url}|${options.maxDim}|${options.cropRatio || ''}`;
+// `sources` is one URL or an ordered list (primary, then backups). Each source but the last gets
+// a single attempt so a dead primary falls through to its backup quickly.
+function fetchImage(sources, options) {
+    const list = [].concat(sources || []).filter(Boolean);
+    if (!list.length) return Promise.resolve(null);
+    const key = `${list.join('|')}|${options.maxDim}|${options.cropRatio || ''}`;
     if (!imageCache.has(key)) {
         imageCache.set(key, (async () => {
-            for (let attempt = 0; attempt <= IMG_RETRIES; attempt++) {
-                try {
-                    return await loadAndEncode(url, options);
-                } catch (error) {
-                    if (attempt < IMG_RETRIES) await sleep(500 * (attempt + 1) + Math.random() * 400);
+            for (let i = 0; i < list.length; i++) {
+                const attempts = i < list.length - 1 ? 1 : IMG_RETRIES + 1;
+                for (let attempt = 0; attempt < attempts; attempt++) {
+                    try {
+                        return await loadAndEncode(list[i], options);
+                    } catch (error) {
+                        if (attempt < attempts - 1) await sleep(500 * (attempt + 1) + Math.random() * 400);
+                    }
                 }
             }
             return null;
@@ -100,7 +106,7 @@ async function prefetchAll(jobs, onProgress, signal) {
         while (next < jobs.length) {
             if (signal?.aborted) return;
             const job = jobs[next++];
-            await fetchImage(job.url, job.options);
+            await fetchImage(job.sources, job.options);
             done++;
             onProgress(done, jobs.length);
         }
@@ -267,15 +273,16 @@ function drawProduct(doc, card, images, categoryName, y0, blockH) {
     const rowH = y0 + blockH - rowTop - 1;
     const photosW = 58;
     const gap = 8;
-    const hasDrawing = Boolean(card.drawing);
+    const drawingKey = card.drawing.length ? `${card.drawing[0]}|drawing` : '';
+    const hasDrawing = Boolean(drawingKey);
     const drawingW = hasDrawing ? 70 : 0;
     const specsX = MARGIN_X + photosW + gap;
     const specsW = contentW - photosW - gap - (hasDrawing ? drawingW + gap : 0);
 
-    drawPhotos(doc, card.photos.map(url => images.get(`${url}|photo`)).filter(Boolean), MARGIN_X, rowTop, photosW, rowH);
+    drawPhotos(doc, card.photos.map(sources => images.get(`${sources[0]}|photo`)).filter(Boolean), MARGIN_X, rowTop, photosW, rowH);
     drawSpecs(doc, card.specs, specsX, rowTop, specsW, rowH);
     if (hasDrawing) {
-        drawDrawing(doc, images.get(`${card.drawing}|drawing`), specsX + specsW + gap, rowTop, drawingW, rowH);
+        drawDrawing(doc, images.get(drawingKey), specsX + specsW + gap, rowTop, drawingW, rowH);
     }
 }
 
@@ -301,19 +308,20 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     // 1. Collect and prefetch every image
     const jobs = [];
     const seen = new Set();
-    const add = (url, kind, options) => {
-        if (!url) return;
-        const key = `${url}|${kind}`;
+    const add = (sources, kind, options) => {
+        const list = [].concat(sources || []).filter(Boolean);
+        if (!list.length) return;
+        const key = `${list[0]}|${kind}`;
         if (seen.has(key)) return;
         seen.add(key);
-        jobs.push({ key, url, options });
+        jobs.push({ key, sources: list, options });
     };
     const COVER_RATIO = PAGE_W / PAGE_H;
     add('/logo.png', 'logo', { maxDim: 600 });
     categories.forEach(cat => {
         add(cat.image, 'cover', { maxDim: 1500, cropRatio: COVER_RATIO });
         cat.cards.forEach(card => {
-            card.photos.forEach(url => add(url, 'photo', { maxDim: 380 }));
+            card.photos.forEach(sources => add(sources, 'photo', { maxDim: 380 }));
             add(card.drawing, 'drawing', { maxDim: 900 });
         });
     });
@@ -322,7 +330,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     if (signal?.aborted) throw new DOMException('Cancelado', 'AbortError');
 
     const images = new Map();
-    for (const job of jobs) images.set(job.key, await fetchImage(job.url, job.options));
+    for (const job of jobs) images.set(job.key, await fetchImage(job.sources, job.options));
 
     // 2. Layout
     onProgress('layout', 0);

@@ -1,5 +1,6 @@
 import { collection, getDocs, query, doc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "./firebase-config.js";
+import { BACKUP_FIELDS, DEFAULT_CLOUD_NAME, isCloudinaryUrl, isBackupConfigured, uploadToCloudinary } from "./image-backup.js";
 
 const PASSWORD = "Sielu2026";
 const loginModal = document.getElementById('loginModal');
@@ -15,6 +16,8 @@ let allProducts = [];
 let categoryOrder = [];
 let categoryImages = {}; // { categoryName: coverImageUrl }
 let showOnlyPending = false;
+let cloudinaryConfig = { cloudName: DEFAULT_CLOUD_NAME, uploadPreset: '' };
+const backupUploads = new Map(); // primary url -> Promise<backup url>, so shared images upload once
 const selectedIds = new Set();
 
 function authenticate() {
@@ -50,6 +53,7 @@ async function fetchProducts() {
             if (productDoc.id === '--category-config--') {
                 categoryOrder = productDoc.data().order || [];
                 categoryImages = productDoc.data().images || {};
+                cloudinaryConfig = { cloudName: DEFAULT_CLOUD_NAME, uploadPreset: '', ...(productDoc.data().cloudinary || {}) };
                 return;
             }
 
@@ -67,6 +71,8 @@ async function fetchProducts() {
                 groupId: data.GrupoId || '',
                 catalogName: data.NombreCatalogo || '',
                 colorSwatch: data.ColorSwatch || '',
+                fields: Object.fromEntries(BACKUP_FIELDS.flatMap(f => [f.primary, f.backup, f.origin])
+                    .map(name => [name, data[name] || ''])),
                 available: (data.Estado || 'Disponible') !== 'No disponible'
             });
         });
@@ -151,6 +157,124 @@ function renderStatusPanel() {
         actions.appendChild(note);
     }
     statusPanel.appendChild(actions);
+    statusPanel.appendChild(buildBackupPanel(available));
+}
+
+// Cloudinary settings + one-click backup of every available product's pending images.
+function buildBackupPanel(available) {
+    const wrap = document.createElement('div');
+    wrap.className = 'catalog-config-backup-panel';
+
+    const configured = isBackupConfigured(cloudinaryConfig);
+    const pending = pendingBackups(available);
+
+    const summary = document.createElement('div');
+    summary.className = 'catalog-config-backup-summary';
+    const text = document.createElement('span');
+    text.textContent = configured
+        ? `Imágenes de respaldo: ${pending === 0 ? 'todas respaldadas' : `${pending} por respaldar`}`
+        : 'Imágenes de respaldo: configura Cloudinary para activarlas';
+    summary.appendChild(text);
+
+    const run = document.createElement('button');
+    run.type = 'button';
+    run.className = 'btn-primary';
+    run.textContent = pending ? `Respaldar ${pending} imágenes` : 'Todo respaldado';
+    run.disabled = !configured || pending === 0;
+    const progress = document.createElement('span');
+    progress.className = 'catalog-config-feedback';
+    summary.append(run, progress);
+    wrap.appendChild(summary);
+
+    run.addEventListener('click', async () => {
+        run.disabled = true;
+        const result = await runBulkBackup((done, total) => {
+            progress.textContent = `Respaldando ${done} de ${total}...`;
+        });
+        progress.textContent = result.aborted
+            ? `Detenido: ${result.firstError}`
+            : (result.failed
+                ? `${result.done} respaldadas, ${result.failed} con error (${result.firstError})`
+                : `${result.done} imágenes respaldadas`);
+        renderStatusPanel();
+        renderProducts();
+    });
+
+    const details = document.createElement('details');
+    details.open = !configured;
+    const toggle = document.createElement('summary');
+    toggle.textContent = 'Configuración de Cloudinary';
+    details.appendChild(toggle);
+
+    const form = document.createElement('div');
+    form.className = 'catalog-config-backup-settings';
+    const cloudInput = document.createElement('input');
+    cloudInput.type = 'text';
+    cloudInput.placeholder = 'Cloud name';
+    cloudInput.value = cloudinaryConfig.cloudName || '';
+    const presetInput = document.createElement('input');
+    presetInput.type = 'text';
+    presetInput.placeholder = 'Upload preset (unsigned)';
+    presetInput.value = cloudinaryConfig.uploadPreset || '';
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'catalog-config-backup-btn';
+    save.textContent = 'Guardar';
+    const saved = document.createElement('span');
+    saved.className = 'catalog-config-feedback';
+    form.append(cloudInput, presetInput, save, saved);
+    details.appendChild(form);
+
+    const help = document.createElement('small');
+    help.textContent = 'En Cloudinary: Settings > Upload > Upload presets > "Add upload preset", con Signing mode "Unsigned". Escribe aquí el nombre del preset.';
+    details.appendChild(help);
+    wrap.appendChild(details);
+
+    save.addEventListener('click', async () => {
+        const next = { cloudName: cloudInput.value.trim(), uploadPreset: presetInput.value.trim() };
+        saved.textContent = 'Guardando...';
+        try {
+            await updateDoc(doc(db, 'productos_sielu', '--category-config--'), { cloudinary: next });
+            cloudinaryConfig = next;
+            saved.textContent = 'Guardado';
+            renderStatusPanel();
+        } catch (error) {
+            console.error('Error al guardar la configuración de Cloudinary:', error);
+            saved.textContent = 'No se pudo guardar';
+        }
+    });
+
+    return wrap;
+}
+
+// Backs up every pending image of the available products, a few uploads at a time. Stops early
+// when several in a row fail (usually a wrong cloud name / upload preset) instead of hammering.
+async function runBulkBackup(onProgress) {
+    const jobs = [];
+    allProducts.filter(p => p.available).forEach(product =>
+        BACKUP_FIELDS.forEach(f => { if (backupNeeded(product, f)) jobs.push({ product, f }); }));
+
+    const state = { total: jobs.length, done: 0, failed: 0, firstError: '', aborted: false };
+    let next = 0;
+    let consecutive = 0;
+    async function worker() {
+        while (next < jobs.length && consecutive < 5) {
+            const job = jobs[next++];
+            try {
+                await backupField(job.product, job.f);
+                consecutive = 0;
+                state.done++;
+            } catch (error) {
+                consecutive++;
+                state.failed++;
+                state.firstError = state.firstError || error.message || String(error);
+            }
+            onProgress(state.done + state.failed, state.total);
+        }
+    }
+    await Promise.all([worker(), worker(), worker()]);
+    state.aborted = consecutive >= 5;
+    return state;
 }
 
 function getOrderedGroups() {
@@ -392,6 +516,188 @@ function renderProducts() {
     renderSelectionBar();
 }
 
+// --- IMAGE BACKUPS (Cloudinary) ---
+// Each image (photo, drawing, context) can have a backup link that the catalog falls back to when
+// the primary host fails. Backups are generated automatically (upload to Cloudinary) and can also
+// be typed by hand. product.fields mirrors the raw Firestore values of the primary/backup/origin
+// fields of BACKUP_FIELDS.
+
+function backupNeeded(product, f) {
+    const primary = product.fields[f.primary];
+    if (!primary || isCloudinaryUrl(primary)) return false;
+    return !(product.fields[f.backup] && product.fields[f.origin] === primary);
+}
+
+function backupStatus(product, f) {
+    const primary = product.fields[f.primary];
+    if (!primary) return { text: 'sin imagen', cls: 'is-none' };
+    if (isCloudinaryUrl(primary) && !product.fields[f.backup]) return { text: 'ya está en Cloudinary', cls: 'is-ok' };
+    if (product.fields[f.backup] && product.fields[f.origin] === primary) return { text: 'respaldada', cls: 'is-ok' };
+    if (product.fields[f.backup]) return { text: 'desactualizada', cls: 'is-pending' };
+    return { text: 'sin respaldo', cls: 'is-pending' };
+}
+
+async function backupField(product, f) {
+    if (!backupNeeded(product, f)) return false;
+    const primary = product.fields[f.primary];
+    if (!backupUploads.has(primary)) {
+        const upload = uploadToCloudinary(primary, cloudinaryConfig);
+        backupUploads.set(primary, upload);
+        upload.catch(() => backupUploads.delete(primary));
+    }
+    const url = await backupUploads.get(primary);
+    await updateDoc(doc(db, 'productos_sielu', product.id), { [f.backup]: url, [f.origin]: primary });
+    product.fields[f.backup] = url;
+    product.fields[f.origin] = primary;
+    return true;
+}
+
+// Returns { done, failed } — a failure doesn't stop the remaining fields.
+async function backupProducts(products, fieldKeys = BACKUP_FIELDS.map(f => f.key)) {
+    const result = { done: 0, failed: [] };
+    for (const product of products) {
+        for (const f of BACKUP_FIELDS.filter(x => fieldKeys.includes(x.key))) {
+            try {
+                if (await backupField(product, f)) result.done++;
+            } catch (error) {
+                result.failed.push({ product, field: f, message: error.message || String(error) });
+            }
+        }
+    }
+    return result;
+}
+
+function pendingBackups(products) {
+    return products.reduce((sum, product) =>
+        sum + BACKUP_FIELDS.filter(f => backupNeeded(product, f)).length, 0);
+}
+
+async function saveManualBackup(products, f, url) {
+    await Promise.all(products.map(product => {
+        const update = url
+            ? { [f.backup]: url, [f.origin]: product.fields[f.primary] || '' }
+            : { [f.backup]: deleteField(), [f.origin]: deleteField() };
+        return updateDoc(doc(db, 'productos_sielu', product.id), update);
+    }));
+    products.forEach(product => {
+        product.fields[f.backup] = url;
+        product.fields[f.origin] = url ? (product.fields[f.primary] || '') : '';
+    });
+}
+
+function backupSummary(result, emptyText) {
+    if (result.failed.length) return `No se pudo respaldar: ${result.failed[0].message}`;
+    if (!result.done) return emptyText;
+    return `${result.done} respaldo${result.done === 1 ? '' : 's'} creado${result.done === 1 ? '' : 's'}`;
+}
+
+// Row shown on each card: one backup URL per image (photo is per product, drawing/context are
+// shared by a group), its status, and a "Respaldar ahora" button.
+function buildBackupRow(products) {
+    const wrap = document.createElement('div');
+    wrap.className = 'catalog-config-backup';
+
+    const title = document.createElement('span');
+    title.className = 'catalog-config-backup-title';
+    title.textContent = 'Imágenes de respaldo (se usan si el enlace principal falla)';
+    wrap.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.className = 'catalog-config-backup-grid';
+    wrap.appendChild(grid);
+
+    const bar = document.createElement('div');
+    bar.className = 'catalog-config-backup-bar';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'catalog-config-backup-btn';
+    button.textContent = 'Respaldar ahora';
+    const message = document.createElement('span');
+    message.className = 'catalog-config-feedback';
+    bar.append(button, message);
+    wrap.appendChild(bar);
+
+    // photo -> one entry per product; drawing/context -> one entry shared by all products
+    const entries = [];
+    BACKUP_FIELDS.forEach(f => {
+        if (f.key === 'photo') {
+            products.forEach(product => entries.push({
+                f, targets: [product],
+                label: products.length > 1 ? `Foto respaldo · ${product.code || product.name}` : 'Foto respaldo'
+            }));
+        } else {
+            entries.push({ f, targets: products, label: f.key === 'drawing' ? 'Dibujo respaldo' : 'Contexto respaldo' });
+        }
+    });
+
+    const refreshers = [];
+    entries.forEach(entry => {
+        const field = document.createElement('label');
+        field.className = 'catalog-config-field';
+        const label = document.createElement('span');
+        const input = document.createElement('input');
+        input.type = 'url';
+        input.placeholder = 'https://... (se genera automáticamente)';
+        const badge = document.createElement('em');
+        badge.className = 'catalog-config-backup-badge';
+        label.append(entry.label + ' ', badge);
+        field.append(label, input);
+        grid.appendChild(field);
+
+        const refresh = () => {
+            input.value = entry.targets[0].fields[entry.f.backup] || '';
+            const states = entry.targets.map(p => backupStatus(p, entry.f));
+            const worst = states.find(s => s.cls === 'is-pending') || states[0];
+            badge.textContent = worst.text;
+            badge.className = 'catalog-config-backup-badge ' + worst.cls;
+        };
+        refreshers.push(refresh);
+        refresh();
+
+        input.addEventListener('change', async () => {
+            message.textContent = 'Guardando...';
+            try {
+                await saveManualBackup(entry.targets, entry.f, input.value.trim());
+                message.textContent = 'Guardado';
+            } catch (error) {
+                console.error('Error al guardar el respaldo:', error);
+                message.textContent = 'No se pudo guardar';
+            }
+            refresh();
+            setTimeout(() => message.textContent = '', 2500);
+        });
+    });
+
+    wrap.refresh = () => refreshers.forEach(fn => fn());
+
+    // After saving a card: backs up only what is missing, without blocking the save feedback.
+    wrap.autoBackup = async fieldKeys => {
+        if (!isBackupConfigured(cloudinaryConfig)) return;
+        const needed = products.some(p => BACKUP_FIELDS.some(f => fieldKeys.includes(f.key) && backupNeeded(p, f)));
+        if (!needed) { wrap.refresh(); return; }
+        message.textContent = 'Respaldando imágenes...';
+        const result = await backupProducts(products, fieldKeys);
+        wrap.refresh();
+        message.textContent = backupSummary(result, '');
+        setTimeout(() => message.textContent = '', 4000);
+    };
+
+    button.addEventListener('click', async () => {
+        if (!isBackupConfigured(cloudinaryConfig)) {
+            message.textContent = 'Configura Cloudinary (panel de arriba) para respaldar automáticamente.';
+            return;
+        }
+        button.disabled = true;
+        message.textContent = 'Respaldando imágenes...';
+        const result = await backupProducts(products);
+        wrap.refresh();
+        message.textContent = backupSummary(result, 'Todo ya estaba respaldado');
+        button.disabled = false;
+    });
+
+    return wrap;
+}
+
 function renderSingleCard(product) {
     const form = document.createElement('form');
     form.className = 'catalog-config-product';
@@ -418,6 +724,9 @@ function renderSingleCard(product) {
     const drawingInput = addField(fields, 'URL dibujo técnico', 'drawing-input', product.drawing);
     const specsInput = addField(fields, 'Especificaciones técnicas', 'specifications-input', product.specifications, true);
     form.appendChild(fields);
+
+    const backupRow = buildBackupRow([product]);
+    form.appendChild(backupRow);
 
     const actions = document.createElement('div');
     actions.className = 'catalog-config-actions';
@@ -447,7 +756,11 @@ function renderSingleCard(product) {
                 drawing: update.Dibujo,
                 specifications: update.Especificaciones
             });
+            product.fields.ImgContexto = update.ImgContexto;
+            product.fields.Dibujo = update.Dibujo;
             feedback.textContent = 'Guardado';
+            backupRow.refresh();
+            backupRow.autoBackup(['drawing', 'context']);
         } catch (error) {
             console.error('Error al guardar catálogo:', error);
             feedback.textContent = 'No se pudo guardar';
@@ -502,6 +815,9 @@ function renderGroupCard(card) {
     const specsInput = addField(fields, 'Especificaciones técnicas', 'specifications-input', representative.specifications, true);
     form.appendChild(fields);
 
+    const backupRow = buildBackupRow(card.members);
+    form.appendChild(backupRow);
+
     const actions = document.createElement('div');
     actions.className = 'catalog-config-actions';
     const saveButton = document.createElement('button');
@@ -528,13 +844,19 @@ function renderGroupCard(card) {
             await Promise.all(card.members.map(member =>
                 updateDoc(doc(db, 'productos_sielu', member.id), update)
             ));
-            card.members.forEach(member => Object.assign(member, {
-                catalogName: update.NombreCatalogo,
-                contextImage: update.ImgContexto,
-                drawing: update.Dibujo,
-                specifications: update.Especificaciones
-            }));
+            card.members.forEach(member => {
+                Object.assign(member, {
+                    catalogName: update.NombreCatalogo,
+                    contextImage: update.ImgContexto,
+                    drawing: update.Dibujo,
+                    specifications: update.Especificaciones
+                });
+                member.fields.ImgContexto = update.ImgContexto;
+                member.fields.Dibujo = update.Dibujo;
+            });
             feedback.textContent = 'Guardado';
+            backupRow.refresh();
+            backupRow.autoBackup(['drawing', 'context']);
         } catch (error) {
             console.error('Error al guardar grupo:', error);
             feedback.textContent = 'No se pudo guardar';
