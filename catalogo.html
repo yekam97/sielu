@@ -33,6 +33,11 @@
                 <span id="viewToggleIcon">📖</span>
                 <span id="viewToggleText">Vista Flipbook</span>
             </button>
+            <!-- Download the whole catalog as a PDF (list view only) -->
+            <button id="downloadPdfBtn" class="btn-primary" style="background: #FAF6ED; border: 1px solid #ECE7DB; font-size: 0.9rem; padding: 0.6rem 1.2rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 50px;">
+                <span>⬇</span>
+                <span id="downloadPdfText">Descargar PDF</span>
+            </button>
         </div>
         
         <div style="display: flex; gap: 1rem; align-items: center; flex: 1; justify-content: flex-end;">
@@ -47,6 +52,7 @@
                 </div>
             </div>
             
+            <span id="searchStatus" class="search-status" hidden></span>
             <input type="text" id="searchInput" placeholder="Buscar en el catálogo..." style="max-width: 300px; width: 100%; padding: 0.6rem 1.2rem; border-radius: 50px;">
         </div>
     </div>

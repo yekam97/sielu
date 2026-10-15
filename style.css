@@ -2120,3 +2120,22 @@ textarea {
     }
 }
 
+
+/* Catalog search: jump-to-match highlight + result counter (nothing is filtered out) */
+.search-status {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    color: var(--sielu-text-muted);
+    white-space: nowrap;
+}
+
+[data-search] {
+    scroll-margin-top: 140px;
+}
+
+.search-hit {
+    outline: 3px solid var(--sielu-gold);
+    outline-offset: 6px;
+    border-radius: 6px;
+    transition: outline-color 0.3s ease;
+}

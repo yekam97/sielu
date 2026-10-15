@@ -14,6 +14,21 @@ const SPECS_TWO_COL_THRESHOLD = 6;
 // Map to store the starting page index of each category in the flipbook
 let categoryPageMap = {};
 
+// Search does not filter the catalog: it jumps to the matching card (list view) or page
+// (flipbook) and leaves everything else in place. Matching ignores case and accents.
+let flipSearchIndex = []; // [{ text, pageIndex, el }] built each time the flipbook is rendered
+let searchMatches = [];
+let searchMatchIdx = -1;
+let searchHitTimer = null;
+
+function normalizeText(value) {
+    return (value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function membersSearchText(members) {
+    return normalizeText(members.map(m => `${m.nombre} ${m.nombreCatalogo} ${m.codigo}`).join(' '));
+}
+
 // Product images live on free third-party hosts (catbox.moe, etc.) that reset connections
 // (ERR_HTTP2_PROTOCOL_ERROR) when many requests arrive at once. Two defenses:
 //  1. A small download queue: images only start loading once they are near the viewport, and at
@@ -173,20 +188,6 @@ async function fetchProducts() {
     }
 }
 
-// Get filtered items based on search input
-function getFilteredItems() {
-    const filter = document.getElementById('searchInput').value.toLowerCase();
-    let filteredItems = allProducts;
-    if (filter) {
-        filteredItems = allProducts.filter(item => 
-            item.nombre.toLowerCase().includes(filter) ||
-            item.codigo.toLowerCase().includes(filter) ||
-            item.cat.toLowerCase().includes(filter)
-        );
-    }
-    return filteredItems;
-}
-
 // Collapse products sharing a non-empty GrupoId into a single "card" (multiple
 // photos + codes, one shared set of specs/drawing taken from the lowest-Orden member).
 function mergeGroupedItems(items) {
@@ -263,7 +264,7 @@ function renderCatalog() {
     container.innerHTML = '';
     if (nav) nav.innerHTML = '';
 
-    const filteredItems = getFilteredItems();
+    const filteredItems = allProducts;
 
     if (filteredItems.length === 0) {
         container.innerHTML = '<div class="loading-catalog">No se encontraron productos en el catálogo.</div>';
@@ -311,6 +312,7 @@ function renderCatalog() {
         const section = document.createElement('section');
         section.className = 'catalog-category-section';
         section.id = catId;
+        section.dataset.search = normalizeText(cat);
 
         // Section Title (a cover banner with the category's image when one has been set)
         const coverImage = categoryImages[cat];
@@ -378,6 +380,7 @@ function buildListProductBlock(cardData) {
 
     const block = document.createElement('div');
     block.className = 'card-product-block';
+    block.dataset.search = membersSearchText(cardData.members);
 
     // Title block
     const titleBlock = document.createElement('div');
@@ -605,8 +608,9 @@ function renderFlipbook() {
     const container = getBookContainer();
     container.innerHTML = '';
     categoryPageMap = {};
+    flipSearchIndex = [];
 
-    const filteredItems = getFilteredItems();
+    const filteredItems = allProducts;
 
     // 1. Front Cover Page (Landscape, proportional to a horizontal letter page)
     const coverPage = document.createElement('div');
@@ -671,6 +675,7 @@ function renderFlipbook() {
     sortedCategories.forEach(cat => {
         // Map category starting page — the cover page when there is one, else the first product page
         categoryPageMap[cat] = pageIndex;
+        flipSearchIndex.push({ text: normalizeText(cat), pageIndex, el: null });
 
         const coverImage = categoryImages[cat];
         if (coverImage) {
@@ -704,13 +709,16 @@ function renderFlipbook() {
 
             page.innerHTML = `
                 <div class="page-content" style="height: 100%; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; width: 100%; padding: 1rem 2.5rem;">
-                    <div style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[0], cat)}</div>
+                    <div data-flip-half style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[0], cat)}</div>
                     ${pair[1] ? '<div style="flex: 0 0 auto; height: 1px; background: #ECE7DB; margin: 0.5rem 0;"></div>' : ''}
-                    ${pair[1] ? `<div style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[1], cat)}</div>` : ''}
+                    ${pair[1] ? `<div data-flip-half style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[1], cat)}</div>` : ''}
                 </div>
             `;
             container.appendChild(page);
             observePageImages(page);
+            page.querySelectorAll('[data-flip-half]').forEach((half, halfIdx) => {
+                flipSearchIndex.push({ text: membersSearchText(pair[halfIdx].members), pageIndex, el: half });
+            });
             pageIndex++;
         }
     });
@@ -765,6 +773,20 @@ function initPageFlip() {
     
     document.getElementById('btnPrev').onclick = () => pageFlipInstance.flipPrev();
     document.getElementById('btnNext').onclick = () => pageFlipInstance.flipNext();
+}
+
+// Short hops animate like a normal page turn; long ones jump straight to the page, because
+// PageFlip would otherwise animate through every page in between and take seconds to land.
+function jumpToPage(pageIndex) {
+    if (!pageFlipInstance) return;
+    const distance = Math.abs(pageIndex - pageFlipInstance.getCurrentPageIndex());
+    if (distance <= 2) {
+        pageFlipInstance.flip(pageIndex);
+    } else {
+        pageFlipInstance.turnToPage(pageIndex);
+        updatePageCounter();
+        updateDropdownActiveTabForFlipbook();
+    }
 }
 
 function updatePageCounter() {
@@ -887,31 +909,150 @@ if (viewToggleBtn) {
             flipbookMain.style.display = 'flex';
             viewToggleText.textContent = 'Vista de Lista';
             viewToggleIcon.textContent = '📋';
+            if (downloadPdfBtn) downloadPdfBtn.style.display = 'none';
             
             // Render and initialize flipbook
             rebuildFlipbook();
+            runSearch(false);
         } else {
             currentView = 'list';
             flipbookMain.style.display = 'none';
             catalogMain.style.display = 'block';
             viewToggleText.textContent = 'Vista Flipbook';
             viewToggleIcon.textContent = '📖';
+            if (downloadPdfBtn) downloadPdfBtn.style.display = 'flex';
             
             destroyPageFlip();
 
             // Re-render list to ensure sync
             renderCatalog();
+            runSearch(false);
         }
     });
 }
 
-// Search handler
-document.getElementById('searchInput').addEventListener('input', () => {
-    if (currentView === 'list') {
-        renderCatalog();
-    } else {
-        rebuildFlipbook();
+// DOWNLOAD PDF (list view): the whole catalog, same order and grouping as on screen
+const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const downloadPdfText = document.getElementById('downloadPdfText');
+
+function buildPdfModel() {
+    const { grouped, sortedCategories } = getGroupedAndSortedItems(allProducts);
+    return sortedCategories.map(cat => ({
+        name: cat,
+        image: categoryImages[cat] || '',
+        cards: mergeGroupedItems(grouped[cat]).map(card => {
+            const rep = card.members[0];
+            return {
+                title: card.nombre,
+                codes: card.members.filter(m => m.codigo).map(m => ({ code: m.codigo, color: m.colorSwatch })),
+                photos: card.members.map(m => m.img || m.imgContexto).filter(Boolean),
+                specs: parseSpecifications(rep.especificaciones, rep),
+                drawing: rep.dibujo
+            };
+        })
+    }));
+}
+
+if (downloadPdfBtn) {
+    downloadPdfBtn.addEventListener('click', async () => {
+        if (downloadPdfBtn.disabled || !allProducts.length) return;
+        downloadPdfBtn.disabled = true;
+        const originalLabel = downloadPdfText.textContent;
+        try {
+            downloadPdfText.textContent = 'Preparando…';
+            const { generateCatalogPdf } = await import('./catalogo-pdf.js');
+            await generateCatalogPdf(buildPdfModel(), {
+                onProgress: (phase, value) => {
+                    const pct = Math.round(value * 100);
+                    if (phase === 'images') downloadPdfText.textContent = `Descargando imágenes ${pct}%`;
+                    else if (phase === 'layout') downloadPdfText.textContent = `Armando PDF ${pct}%`;
+                    else downloadPdfText.textContent = 'Guardando…';
+                }
+            });
+        } catch (error) {
+            console.error('Error al generar el PDF del catálogo:', error);
+            alert('No se pudo generar el PDF del catálogo. Intenta de nuevo.');
+        } finally {
+            downloadPdfText.textContent = originalLabel;
+            downloadPdfBtn.disabled = false;
+        }
+    });
+}
+
+// SEARCH: jump to the match without hiding anything else
+const searchInputEl = document.getElementById('searchInput');
+const searchStatusEl = document.getElementById('searchStatus');
+
+function setSearchStatus(text) {
+    if (!searchStatusEl) return;
+    searchStatusEl.textContent = text;
+    searchStatusEl.hidden = !text;
+}
+
+function collectMatches(term) {
+    if (currentView === 'flipbook') {
+        return flipSearchIndex
+            .filter(entry => entry.text.includes(term))
+            .sort((a, b) => a.pageIndex - b.pageIndex);
     }
+    return [...document.querySelectorAll('#catalogContainer [data-search]')]
+        .filter(el => el.dataset.search.includes(term))
+        .map(el => ({ el }));
+}
+
+function highlightHit(el) {
+    document.querySelectorAll('.search-hit').forEach(n => n.classList.remove('search-hit'));
+    if (!el) return;
+    el.classList.add('search-hit');
+    clearTimeout(searchHitTimer);
+    searchHitTimer = setTimeout(() => el.classList.remove('search-hit'), 3000);
+}
+
+function goToMatch(index) {
+    if (!searchMatches.length) return;
+    searchMatchIdx = (index + searchMatches.length) % searchMatches.length;
+    const target = searchMatches[searchMatchIdx];
+    if (currentView === 'flipbook') {
+        jumpToPage(target.pageIndex);
+        highlightHit(target.el);
+    } else {
+        target.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        highlightHit(target.el);
+    }
+    setSearchStatus(`${searchMatchIdx + 1} de ${searchMatches.length} · Enter: siguiente`);
+}
+
+function runSearch(navigate = true) {
+    const term = normalizeText(searchInputEl.value.trim());
+    if (!term) {
+        searchMatches = [];
+        searchMatchIdx = -1;
+        highlightHit(null);
+        setSearchStatus('');
+        return;
+    }
+    searchMatches = collectMatches(term);
+    searchMatchIdx = -1;
+    if (!searchMatches.length) {
+        highlightHit(null);
+        setSearchStatus('Sin resultados');
+        return;
+    }
+    if (navigate) goToMatch(0);
+    else setSearchStatus(`${searchMatches.length} resultado${searchMatches.length === 1 ? '' : 's'}`);
+}
+
+let searchDebounce = null;
+searchInputEl.addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => runSearch(true), 250);
+});
+searchInputEl.addEventListener('keydown', event => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    clearTimeout(searchDebounce);
+    if (searchMatchIdx === -1) runSearch(true);
+    else goToMatch(searchMatchIdx + (event.shiftKey ? -1 : 1));
 });
 
 // Initialize fetch
