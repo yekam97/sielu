@@ -2253,3 +2253,112 @@ textarea {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* Accessories: up to four compact blocks per card, in a 2x2 grid */
+.catalog-card--accessories {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0;
+}
+
+.catalog-card--accessories .card-product-block {
+    padding: clamp(1.1rem, 2.4vw, 1.75rem);
+    min-width: 0;
+}
+
+.catalog-card--accessories .card-product-block:first-child,
+.catalog-card--accessories .card-product-block:last-child {
+    padding-top: clamp(1.1rem, 2.4vw, 1.75rem);
+    padding-bottom: clamp(1.1rem, 2.4vw, 1.75rem);
+}
+
+.catalog-card--accessories .card-product-block:nth-child(odd) {
+    border-right: 1px solid #ebe6dc;
+}
+
+.catalog-card--accessories .card-product-block:nth-child(n + 3) {
+    border-top: 1px solid #ebe6dc;
+}
+
+.card-product-block--compact .card-title-block {
+    margin-bottom: 1rem;
+}
+
+.card-product-block--compact .card-title-block .product-title {
+    font-size: clamp(1rem, 1.6vw, 1.25rem);
+}
+
+.card-product-block--compact .card-title-block .product-model {
+    font-size: 0.8rem;
+}
+
+.card-product-block--compact .card-columns {
+    gap: 1rem;
+}
+
+.card-product-block--compact .card-photos .product-thumb {
+    width: 104px;
+    height: 104px;
+}
+
+.card-product-block--compact .card-photos.is-group .product-thumb {
+    width: 84px;
+    height: 84px;
+}
+
+.card-product-block--compact .card-photos .product-thumb-group[data-count="3"] .product-thumb {
+    width: 72px;
+    height: 72px;
+}
+
+.card-product-block--compact .card-columns .specs-section,
+.card-product-block--compact .card-columns .drawing-section {
+    flex: 1 1 150px;
+    min-width: 0;
+}
+
+.card-product-block--compact .spec-item {
+    padding: 0.3rem 0;
+}
+
+@media (max-width: 720px) {
+    .catalog-card--accessories {
+        grid-template-columns: 1fr;
+    }
+
+    .catalog-card--accessories .card-product-block:nth-child(odd) {
+        border-right: 0;
+    }
+
+    .catalog-card--accessories .card-product-block + .card-product-block {
+        border-top: 1px solid #ebe6dc;
+    }
+}
+
+/* "Es accesorio" switch in the configurator cards */
+.catalog-config-accessory {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.catalog-config-accessory input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--sielu-gold);
+    cursor: pointer;
+}
+
+.catalog-config-accessory--group {
+    grid-column: 1 / -1;
+    margin-top: 0;
+}
+
+.catalog-config-accessory .catalog-config-feedback {
+    font-style: normal;
+    font-weight: 400;
+}

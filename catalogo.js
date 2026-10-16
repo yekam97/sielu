@@ -220,7 +220,8 @@ async function fetchProducts() {
                 dibujoRespaldo: data.DibujoRespaldo || '',
                 grupoId: data.GrupoId || '',
                 nombreCatalogo: data.NombreCatalogo || '',
-                colorSwatch: data.ColorSwatch || ''
+                colorSwatch: data.ColorSwatch || '',
+                accesorio: data.Accesorio === true
             });
         });
 
@@ -265,6 +266,7 @@ function mergeGroupedItems(items) {
         // A GrupoId left on only one available product behaves like a normal single card.
         if (card.members.length < 2) card.isGroup = false;
         card.orden = Number(card.members[0].orden) || 0;
+        card.isAccessory = card.members.some(member => member.accesorio);
         card.nombre = card.members[0].nombreCatalogo || card.members[0].nombre;
         // Sort by the real product name, never by the (optionally overridden) catalog display
         // name — otherwise renaming a group's display name in the configurador would also move
@@ -274,6 +276,23 @@ function mergeGroupedItems(items) {
 
     cards.sort((a, b) => a.orden - b.orden || a.sortNombre.localeCompare(b.sortNombre));
     return cards;
+}
+
+// Pages are filled in catalog order: regular products go 2 per page, accessories (which have few
+// specs) go 4 per page. A page never mixes both kinds, so a change of kind starts a new page.
+const ITEMS_PER_PAGE = 2;
+const ACCESSORIES_PER_PAGE = 4;
+
+function paginateCards(cards) {
+    const pages = [];
+    cards.forEach(card => {
+        const accessory = Boolean(card.isAccessory);
+        const limit = accessory ? ACCESSORIES_PER_PAGE : ITEMS_PER_PAGE;
+        const last = pages[pages.length - 1];
+        if (last && last.accessory === accessory && last.cards.length < limit) last.cards.push(card);
+        else pages.push({ accessory, cards: [card] });
+    });
+    return pages;
 }
 
 // Group and sort items by category
@@ -397,23 +416,27 @@ function renderCatalog() {
         grid.className = 'catalog-cards-grid';
 
         // Render Product Cards: two products (or groups) share one card, one on top / one below
-        const cardItems = mergeGroupedItems(grouped[cat]);
-        for (let i = 0; i < cardItems.length; i += 2) {
-            const pair = cardItems.slice(i, i + 2);
-
+        paginateCards(mergeGroupedItems(grouped[cat])).forEach(pageData => {
             const card = document.createElement('div');
             card.className = 'catalog-card catalog-card--flat';
 
-            card.appendChild(buildListProductBlock(pair[0]));
-            if (pair[1]) {
-                const divider = document.createElement('div');
-                divider.className = 'card-pair-divider';
-                card.appendChild(divider);
-                card.appendChild(buildListProductBlock(pair[1]));
+            if (pageData.accessory) {
+                // Accessories: up to four compact blocks in a 2x2 grid
+                card.classList.add('catalog-card--accessories');
+                pageData.cards.forEach(item => card.appendChild(buildListProductBlock(item, { compact: true })));
+            } else {
+                const [first, second] = pageData.cards;
+                card.appendChild(buildListProductBlock(first));
+                if (second) {
+                    const divider = document.createElement('div');
+                    divider.className = 'card-pair-divider';
+                    card.appendChild(divider);
+                    card.appendChild(buildListProductBlock(second));
+                }
             }
 
             grid.appendChild(card);
-        }
+        });
 
         section.appendChild(grid);
         container.appendChild(section);
@@ -422,12 +445,12 @@ function renderCatalog() {
 
 // Build one product's block (title + photo/specs/dimensions columns) for the list view.
 // Two of these share a single .catalog-card--flat, stacked with a divider between them.
-function buildListProductBlock(cardData) {
+function buildListProductBlock(cardData, { compact = false } = {}) {
     const representative = cardData.members[0];
     const specs = parseSpecifications(representative.especificaciones, representative);
 
     const block = document.createElement('div');
-    block.className = 'card-product-block';
+    block.className = compact ? 'card-product-block card-product-block--compact' : 'card-product-block';
     block.dataset.search = membersSearchText(cardData.members);
 
     // Title block
@@ -485,7 +508,7 @@ function buildListProductBlock(cardData) {
     const specsList = document.createElement('div');
     specsList.className = 'specs-list';
     // Long spec lists flow into two columns so every card keeps a similar height
-    if (specs.length > SPECS_TWO_COL_THRESHOLD) {
+    if (!compact && specs.length > SPECS_TWO_COL_THRESHOLD) {
         specsSection.classList.add('specs-section--wide');
         specsList.style.setProperty('--spec-rows', String(Math.ceil(specs.length / 2)));
     }
@@ -623,6 +646,56 @@ function buildFlipCardHtml(cardData, cat) {
     `;
 }
 
+// Compact cell for accessories (four per flipbook page, in a 2x2 grid): title + codes on top,
+// then photo(s) on the left and specs (plus the drawing when there is one) on the right. Same
+// flex-fills-the-remaining-height approach as buildFlipCardHtml so it scales with the page.
+function buildFlipAccessoryHtml(cardData, cat) {
+    const representative = cardData.members[0];
+    const specs = parseSpecifications(representative.especificaciones, representative);
+    const photoCount = cardData.members.length;
+    const photoCols = photoCount >= 4 ? 2 : 1;
+    const photoRows = Math.ceil(photoCount / photoCols);
+    const photoGap = 6;
+    const thumbCap = photoCount >= 4 ? 80 : photoCount > 1 ? 100 : 150;
+    const thumbsHtml = cardData.members.map(member => `
+        <div class="product-thumb" style="width: 100%; height: 100%; padding: 0.35rem; box-sizing: border-box;">
+            <img src="${IMG_PLACEHOLDER}" ${imgSourceAttrs(photoSources(member))} alt="${member.nombre}" onerror="window.sieluRetryImg(this, 'thumb')">
+        </div>
+    `).join('');
+    const thumbGroupStyle = `flex: 0 0 auto; height: 100%; aspect-ratio: ${photoCols} / ${photoRows}; max-height: ${thumbCap * photoRows + photoGap * (photoRows - 1)}px; overflow: hidden; display: grid; grid-template-columns: repeat(${photoCols}, minmax(0, 1fr)); grid-template-rows: repeat(${photoRows}, minmax(0, 1fr)); gap: ${photoGap}px; align-self: center;`;
+    const hasDrawing = Boolean(representative.dibujo);
+
+    return `
+        <div style="height: 100%; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column;">
+            <div style="flex: 0 0 auto; overflow: hidden; margin-bottom: 0.4rem;">
+                <h3 style="font-family: 'Poppins', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--sielu-text-dark); margin: 0 0 2px; line-height: 1.2; text-transform: uppercase; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${cardData.nombre}</h3>
+                <p style="font-family: var(--font-sans); font-size: 0.66rem; font-weight: 500; color: var(--sielu-text-muted); letter-spacing: 1px; margin: 0; line-height: 1.1; text-transform: uppercase;">${buildCodesHtml(cardData.members)}</p>
+            </div>
+
+            <div style="display: flex; gap: 0.9rem; align-items: stretch; flex: 1 1 0; min-height: 0; overflow: hidden;">
+                <div class="product-thumb-group" style="${thumbGroupStyle}">${thumbsHtml}</div>
+
+                <div style="flex: 1 1 0; min-width: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column; gap: 0.4rem;">
+                    <div style="flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: clamp(3px, 2%, 8px);">
+                        ${specs.length > 0 ? specs.slice(0, 8).map(spec => `
+                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.3rem; line-height: 1.15; flex-shrink: 0; min-width: 0;">
+                                <span style="font-family: var(--font-sans); font-weight: 600; font-size: 0.62rem; color: var(--sielu-text-dark); text-transform: uppercase;">${spec.label}</span>
+                                <span style="flex-grow: 1; border-bottom: 1px dotted #B0A795; margin: 0 3px; min-width: 4px;"></span>
+                                <span style="font-family: var(--font-sans); font-size: 0.64rem; color: var(--sielu-text-dark); text-align: right; min-width: 0;">${spec.value}</span>
+                            </div>
+                        `).join('') : ''}
+                    </div>
+                    ${hasDrawing ? `
+                    <div style="flex: 0 0 38%; min-height: 0; overflow: hidden; display: flex; justify-content: center; align-items: center;">
+                        <img src="${IMG_PLACEHOLDER}" ${imgSourceAttrs(drawingSources(representative))} style="max-height: 100%; max-width: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1);" alt="Dimensiones" onerror="window.sieluRetryImg(this, 'drawing')">
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 // RENDER FLIPBOOK VIEW (Landscape Layout to match List view card)
 // PageFlip's destroy() removes the container element from the DOM, so it must be recreated
 // before each render (opening the flipbook a second time used to crash on a null container).
@@ -745,9 +818,8 @@ function renderFlipbook() {
             pageIndex++;
         }
 
-        const cardItems = mergeGroupedItems(grouped[cat]);
-        for (let i = 0; i < cardItems.length; i += 2) {
-            const pair = cardItems.slice(i, i + 2);
+        paginateCards(mergeGroupedItems(grouped[cat])).forEach(pageData => {
+            const pair = pageData.cards;
 
             const page = document.createElement('div');
             page.className = 'page';
@@ -755,20 +827,34 @@ function renderFlipbook() {
             page.style.height = `${FLIP_PAGE_H}px`;
             page.style.padding = '0';
 
-            page.innerHTML = `
-                <div class="page-content" style="height: 100%; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; width: 100%; padding: 1rem 2.5rem;">
-                    <div data-flip-half style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[0], cat)}</div>
-                    ${pair[1] ? '<div style="flex: 0 0 auto; height: 1px; background: #ECE7DB; margin: 0.5rem 0;"></div>' : ''}
-                    ${pair[1] ? `<div data-flip-half style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[1], cat)}</div>` : ''}
-                </div>
-            `;
+            if (pageData.accessory) {
+                // Accessories: up to four cells in a 2x2 grid, separated by thin lines
+                const cells = pair.map((item, index) => {
+                    const border = [
+                        index % 2 === 0 ? 'border-right: 1px solid #ECE7DB;' : '',
+                        index < 2 && pair.length > 2 ? 'border-bottom: 1px solid #ECE7DB;' : ''
+                    ].join(' ');
+                    return `<div data-flip-half style="min-height: 0; min-width: 0; overflow: hidden; box-sizing: border-box; padding: 0.6rem 1rem; ${border}">${buildFlipAccessoryHtml(item, cat)}</div>`;
+                }).join('');
+                page.innerHTML = `
+                    <div class="page-content" style="height: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); box-sizing: border-box; overflow: hidden; width: 100%; padding: 0.6rem 1.5rem;">${cells}</div>
+                `;
+            } else {
+                page.innerHTML = `
+                    <div class="page-content" style="height: 100%; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; width: 100%; padding: 1rem 2.5rem;">
+                        <div data-flip-half style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[0], cat)}</div>
+                        ${pair[1] ? '<div style="flex: 0 0 auto; height: 1px; background: #ECE7DB; margin: 0.5rem 0;"></div>' : ''}
+                        ${pair[1] ? `<div data-flip-half style="flex: 1 1 0; min-height: 0; overflow: hidden;">${buildFlipCardHtml(pair[1], cat)}</div>` : ''}
+                    </div>
+                `;
+            }
             container.appendChild(page);
             observePageImages(page);
             page.querySelectorAll('[data-flip-half]').forEach((half, halfIdx) => {
                 flipSearchIndex.push({ text: membersSearchText(pair[halfIdx].members), pageIndex, el: half });
             });
             pageIndex++;
-        }
+        });
     });
 
     // 4. Back Cover Page (Landscape)
@@ -988,16 +1074,19 @@ function buildPdfModel() {
     return sortedCategories.map(cat => ({
         name: cat,
         image: uniqueSources(coverSources(cat)),
-        cards: mergeGroupedItems(grouped[cat]).map(card => {
-            const rep = card.members[0];
-            return {
-                title: card.nombre,
-                codes: card.members.filter(m => m.codigo).map(m => ({ code: m.codigo, color: m.colorSwatch })),
-                photos: card.members.map(m => uniqueSources(photoSources(m))).filter(list => list.length),
-                specs: parseSpecifications(rep.especificaciones, rep),
-                drawing: uniqueSources(drawingSources(rep))
-            };
-        })
+        pages: paginateCards(mergeGroupedItems(grouped[cat])).map(pageData => ({
+            accessory: pageData.accessory,
+            cards: pageData.cards.map(card => {
+                const rep = card.members[0];
+                return {
+                    title: card.nombre,
+                    codes: card.members.filter(m => m.codigo).map(m => ({ code: m.codigo, color: m.colorSwatch })),
+                    photos: card.members.map(m => uniqueSources(photoSources(m))).filter(list => list.length),
+                    specs: parseSpecifications(rep.especificaciones, rep),
+                    drawing: uniqueSources(drawingSources(rep))
+                };
+            })
+        }))
     }));
 }
 

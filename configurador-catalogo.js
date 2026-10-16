@@ -77,6 +77,7 @@ async function fetchProducts() {
                 groupId: data.GrupoId || '',
                 catalogName: data.NombreCatalogo || '',
                 colorSwatch: data.ColorSwatch || '',
+                accessory: data.Accesorio === true,
                 fields: Object.fromEntries(BACKUP_FIELDS.flatMap(f => [f.primary, f.backup, f.origin])
                     .map(name => [name, data[name] || ''])),
                 available: (data.Estado || 'Disponible') !== 'No disponible'
@@ -387,6 +388,42 @@ function buildThumbWrap(product, { removable = false } = {}) {
     }
 
     return wrap;
+}
+
+// "Es accesorio" switch, saved immediately. Accessories have few specs, so the visual catalog lays
+// them out four per page (2x2) instead of two. On a merged group it applies to every member.
+function buildAccessoryToggle(products) {
+    const label = document.createElement('label');
+    label.className = 'catalog-config-accessory';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = products.some(product => product.accessory);
+    const text = document.createElement('span');
+    text.textContent = 'Es accesorio';
+    label.title = 'Los accesorios se muestran 4 por página en el catálogo visual';
+    const feedback = document.createElement('em');
+    feedback.className = 'catalog-config-feedback';
+    label.append(checkbox, text, feedback);
+
+    checkbox.addEventListener('change', async () => {
+        const value = checkbox.checked;
+        checkbox.disabled = true;
+        feedback.textContent = 'Guardando...';
+        try {
+            await Promise.all(products.map(product =>
+                updateDoc(doc(db, 'productos_sielu', product.id), { Accesorio: value })));
+            products.forEach(product => { product.accessory = value; });
+            feedback.textContent = 'Guardado';
+        } catch (error) {
+            console.error('Error al guardar si es accesorio:', error);
+            checkbox.checked = !value;
+            feedback.textContent = 'No se pudo guardar';
+        } finally {
+            checkbox.disabled = false;
+            setTimeout(() => feedback.textContent = '', 2500);
+        }
+    });
+    return label;
 }
 
 // Small color picker saved immediately on change — drives the colored dot shown next to this
@@ -850,6 +887,7 @@ function renderSingleCard(product) {
     codeEl.textContent = product.code || 'Sin código';
     codeRow.append(codeEl, buildColorInput(product));
     title.appendChild(codeRow);
+    title.appendChild(buildAccessoryToggle([product]));
     identity.appendChild(title);
     form.appendChild(identity);
 
@@ -939,6 +977,9 @@ function renderGroupCard(card) {
     groupNote.className = 'catalog-config-group-note';
     groupNote.textContent = `${card.members.length} productos unidos · comparten estas especificaciones e imágenes en el catálogo visual.`;
     form.appendChild(groupNote);
+    const accessoryToggle = buildAccessoryToggle(card.members);
+    accessoryToggle.classList.add('catalog-config-accessory--group');
+    form.appendChild(accessoryToggle);
 
     const fields = document.createElement('div');
     fields.className = 'catalog-config-fields';
@@ -1072,6 +1113,7 @@ async function mergeSelected(selectedProducts) {
         Dibujo: representative.drawing,
         Especificaciones: representative.specifications,
         NombreCatalogo: representative.catalogName || representative.name,
+        Accesorio: sorted.some(product => product.accessory),
         fechaUpdate: new Date()
     };
 

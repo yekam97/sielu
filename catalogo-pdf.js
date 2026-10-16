@@ -154,7 +154,7 @@ function fitValue(doc, text, maxWidth, size) {
     return out === text ? out : `${out.trimEnd()}...`;
 }
 
-function drawSpecs(doc, specs, x, y, w, h) {
+function drawSpecs(doc, specs, x, y, w, h, { singleColumn = false, maxRows = 14 } = {}) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...GOLD);
@@ -173,8 +173,8 @@ function drawSpecs(doc, specs, x, y, w, h) {
         return;
     }
 
-    const list = specs.slice(0, 14);
-    const cols = list.length > 6 ? 2 : 1;
+    const list = specs.slice(0, maxRows);
+    const cols = !singleColumn && list.length > 6 ? 2 : 1;
     const colGap = 7;
     const colW = (w - colGap * (cols - 1)) / cols;
     const perCol = Math.ceil(list.length / cols);
@@ -286,6 +286,36 @@ function drawProduct(doc, card, images, categoryName, y0, blockH) {
     }
 }
 
+// Compact cell for accessories (four per page, 2x2): title + codes, photo(s) on the left, specs
+// on the right with the drawing underneath when there is one.
+function drawAccessory(doc, card, images, x, y, w, h) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...DARK);
+    const titleLines = doc.splitTextToSize(pdfText(card.title).toUpperCase(), w).slice(0, 2);
+    const titleY = y + 4;
+    doc.text(titleLines, x, titleY);
+    const afterTitle = titleY + (titleLines.length - 1) * 4.3;
+    drawCodes(doc, card.codes, x, afterTitle + 4.8);
+
+    const rowTop = afterTitle + 8.5;
+    const rowH = y + h - rowTop;
+    const photosW = 40;
+    const gap = 6;
+    const rightX = x + photosW + gap;
+    const rightW = w - photosW - gap;
+    const drawingKey = card.drawing.length ? `${card.drawing[0]}|drawing` : '';
+
+    drawPhotos(doc, card.photos.map(sources => images.get(`${sources[0]}|photo`)).filter(Boolean), x, rowTop, photosW, rowH);
+    if (drawingKey) {
+        const drawingH = Math.min(30, rowH * 0.42);
+        drawSpecs(doc, card.specs, rightX, rowTop, rightW, rowH - drawingH - 2, { singleColumn: true, maxRows: 8 });
+        drawDrawing(doc, images.get(drawingKey), rightX, rowTop + rowH - drawingH, rightW, drawingH);
+    } else {
+        drawSpecs(doc, card.specs, rightX, rowTop, rightW, rowH, { singleColumn: true, maxRows: 8 });
+    }
+}
+
 function pageBackground(doc) {
     doc.setFillColor(...CREAM);
     doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
@@ -325,10 +355,10 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     add('/logo.png', 'logo', { maxDim: 600 });
     categories.forEach(cat => {
         add(cat.image, 'cover', { maxDim: 1500, cropRatio: COVER_RATIO });
-        cat.cards.forEach(card => {
+        cat.pages.forEach(page => page.cards.forEach(card => {
             card.photos.forEach(sources => add(sources, 'photo', { maxDim: 380 }));
             add(card.drawing, 'drawing', { maxDim: 900 });
-        });
+        }));
     });
 
     await prefetchAll(jobs, (done, total) => onProgress('images', done / total), signal);
@@ -394,21 +424,43 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
         }
 
         const blockH = (PAGE_H - TOP - 14 - BLOCK_GAP) / 2;
-        for (let i = 0; i < cat.cards.length; i += 2) {
+        cat.pages.forEach(pageData => {
             doc.addPage([PAGE_W, PAGE_H], 'landscape');
             pageNumber++;
             pageBackground(doc);
 
-            drawProduct(doc, cat.cards[i], images, cat.name, TOP, blockH);
-            if (cat.cards[i + 1]) {
-                const dividerY = TOP + blockH + BLOCK_GAP / 2;
+            if (pageData.accessory) {
+                const colGap = 10;
+                const cellW = (PAGE_W - MARGIN_X * 2 - colGap) / 2;
                 doc.setDrawColor(...LINE);
                 doc.setLineWidth(0.3);
-                doc.line(MARGIN_X, dividerY, PAGE_W - MARGIN_X, dividerY);
-                drawProduct(doc, cat.cards[i + 1], images, cat.name, TOP + blockH + BLOCK_GAP, blockH);
+                pageData.cards.forEach((card, index) => {
+                    const cx = MARGIN_X + (index % 2) * (cellW + colGap);
+                    const cy = TOP + Math.floor(index / 2) * (blockH + BLOCK_GAP);
+                    drawAccessory(doc, card, images, cx, cy, cellW, blockH);
+                });
+                // Thin separators between the cells
+                if (pageData.cards.length > 1) {
+                    const midX = MARGIN_X + cellW + colGap / 2;
+                    const lineBottom = pageData.cards.length > 2 ? TOP + blockH * 2 + BLOCK_GAP : TOP + blockH;
+                    doc.line(midX, TOP, midX, lineBottom);
+                }
+                if (pageData.cards.length > 2) {
+                    const midY = TOP + blockH + BLOCK_GAP / 2;
+                    doc.line(MARGIN_X, midY, PAGE_W - MARGIN_X, midY);
+                }
+            } else {
+                drawProduct(doc, pageData.cards[0], images, cat.name, TOP, blockH);
+                if (pageData.cards[1]) {
+                    const dividerY = TOP + blockH + BLOCK_GAP / 2;
+                    doc.setDrawColor(...LINE);
+                    doc.setLineWidth(0.3);
+                    doc.line(MARGIN_X, dividerY, PAGE_W - MARGIN_X, dividerY);
+                    drawProduct(doc, pageData.cards[1], images, cat.name, TOP + blockH + BLOCK_GAP, blockH);
+                }
             }
             footer(doc, pageNumber, images.get('/logo.png|logo'));
-        }
+        });
         onProgress('layout', (catIndex + 1) / categories.length);
     });
 
