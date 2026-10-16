@@ -291,11 +291,16 @@ function pageBackground(doc) {
     doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
 }
 
-function footer(doc, number) {
+function footer(doc, number, logo) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
-    doc.text('sielu', MARGIN_X, FOOTER_Y);
+    if (logo) {
+        const lh = 4.5;
+        doc.addImage(logo.data, 'JPEG', MARGIN_X, FOOTER_Y - lh + 0.6, lh * (logo.w / logo.h), lh);
+    } else {
+        doc.text('sielu', MARGIN_X, FOOTER_Y);
+    }
     doc.text(String(number), PAGE_W - MARGIN_X, FOOTER_Y, { align: 'right' });
 }
 
@@ -402,7 +407,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
                 doc.line(MARGIN_X, dividerY, PAGE_W - MARGIN_X, dividerY);
                 drawProduct(doc, cat.cards[i + 1], images, cat.name, TOP + blockH + BLOCK_GAP, blockH);
             }
-            footer(doc, pageNumber);
+            footer(doc, pageNumber, images.get('/logo.png|logo'));
         }
         onProgress('layout', (catIndex + 1) / categories.length);
     });
