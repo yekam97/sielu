@@ -1,5 +1,10 @@
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, getDoc, setDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, deleteField, query, getDoc, setDoc } from "firebase/firestore";
 import { db } from "./firebase-config.js";
+import { BACKUP_FIELDS, DEFAULT_CLOUD_NAME, currentBackup, installImageFallback, isBackupConfigured, isCloudinaryUrl, uploadToCloudinary } from "./image-backup.js";
+
+installImageFallback();
+const PHOTO_FIELD = BACKUP_FIELDS.find(f => f.key === 'photo');
+let cloudinaryConfig = { cloudName: DEFAULT_CLOUD_NAME, uploadPreset: '' };
 
 // --- AUTHENTICATION ---
 const PASSWORD = "Sielu2026";
@@ -69,6 +74,7 @@ async function fetchProducts() {
         querySnapshot.forEach((doc) => {
             if (doc.id === "--category-config--") {
                 categoryOrder = doc.data().order || [];
+                cloudinaryConfig = { cloudName: DEFAULT_CLOUD_NAME, uploadPreset: '', ...(doc.data().cloudinary || {}) };
                 foundConfig = true;
                 console.log("Configuración de categorías encontrada en colección:", categoryOrder);
                 return;
@@ -80,6 +86,7 @@ async function fetchProducts() {
                 cat: data.Categoria || 'Sin Categoría',
                 nombre: data.Nombre || '',
                 img: data.Imagen || '',
+                imgRespaldo: currentBackup(data, PHOTO_FIELD),
                 codigo: data.CodigoFacturacion || '',
                 precio: data.PrecioAntesIVA || 0,
                 ficha: data.FichaTecnica || '',
@@ -201,7 +208,7 @@ function renderTable(filter = '') {
             if (isCollapsed) tr.classList.add('hidden');
 
             tr.innerHTML = `
-                <td data-label="Imagen"><img src="${item.img || ''}" class="product-img" onerror="this.style.display='none'"></td>
+                <td data-label="Imagen"><img src="${item.img || ''}" ${item.imgRespaldo ? `data-alt="${item.imgRespaldo}"` : ''} class="product-img" onerror="sieluImgFallback(this)"></td>
                 <td data-label="Producto">
                     <strong>${item.nombre}</strong><br>
                     <small>${item.cat}</small>
@@ -328,6 +335,35 @@ window.editItem = (id) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
+// --- PHOTO BACKUP (Cloudinary) ---
+// The catalog and price list fall back to a Cloudinary copy of the photo when its link fails. The
+// copy is made in the background after saving, so saving never waits on the upload.
+function showToast(text) {
+    const toast = document.createElement('div');
+    toast.textContent = text;
+    toast.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.25);';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+async function backupPhoto(productId, url) {
+    if (isCloudinaryUrl(url) || !isBackupConfigured(cloudinaryConfig)) return;
+    showToast('Creando imagen de respaldo...');
+    try {
+        const backupUrl = await uploadToCloudinary(url, cloudinaryConfig);
+        await updateDoc(doc(db, "productos_sielu", productId), {
+            [PHOTO_FIELD.backup]: backupUrl,
+            [PHOTO_FIELD.origin]: url
+        });
+        const product = allProducts.find(p => p.id === productId);
+        if (product && product.img === url) product.imgRespaldo = backupUrl;
+        showToast('Imagen de respaldo creada');
+    } catch (error) {
+        console.warn('No se pudo respaldar la imagen:', error);
+        showToast('No se pudo crear el respaldo de la imagen (puedes hacerlo desde el Configurador de Catálogo)');
+    }
+}
+
 // --- FORM HANDLING ---
 const form = document.getElementById('productForm');
 const submitBtn = document.getElementById('submitBtn');
@@ -357,8 +393,19 @@ form.addEventListener('submit', async e => {
         fechaUpdate: new Date()
     };
 
+    // A changed photo link makes the stored backup copy outdated (it would show the old image), so
+    // drop it here and make a new one below.
+    const previous = id ? allProducts.find(p => p.id === id) : null;
+    const photoChanged = !previous || previous.img !== data.Imagen;
+    if (previous && photoChanged) {
+        data[PHOTO_FIELD.backup] = deleteField();
+        data[PHOTO_FIELD.origin] = deleteField();
+    }
+    const needsBackup = Boolean(data.Imagen) && (photoChanged || !previous.imgRespaldo);
+
     submitBtn.disabled = true;
     try {
+        let savedId = id;
         if (id) {
             // Solo actualizamos los campos del formulario, respetando el Orden actual en la base de datos
             await updateDoc(doc(db, "productos_sielu", id), data);
@@ -366,7 +413,7 @@ form.addEventListener('submit', async e => {
             data.Orden = 0; // Orden por defecto solo para productos nuevos
 
             data.Estado = 'Disponible';
-            await addDoc(collection(db, "productos_sielu"), data);
+            savedId = (await addDoc(collection(db, "productos_sielu"), data)).id;
         }
 
         if (!categoryOrder.includes(cat)) {
@@ -376,6 +423,7 @@ form.addEventListener('submit', async e => {
 
         resetForm();
         await fetchProducts();
+        if (needsBackup) backupPhoto(savedId, data.Imagen);
     } catch (e) {
         alert("Error: " + e.message);
     } finally {

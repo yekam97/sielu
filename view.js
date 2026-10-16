@@ -2,6 +2,10 @@ import { collection, getDocs, query, doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase-config.js";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { BACKUP_FIELDS, currentBackup, installImageFallback } from "./image-backup.js";
+
+installImageFallback();
+const PHOTO_FIELD = BACKUP_FIELDS.find(f => f.key === 'photo');
 
 let allProducts = [];
 let categoryOrder = [];
@@ -30,6 +34,7 @@ async function fetchProducts() {
                 nombre: data.Nombre || '',
                 cat: data.Categoria || 'Sin Categoría',
                 img: data.Imagen || '',
+                imgRespaldo: currentBackup(data, PHOTO_FIELD),
                 codigo: data.CodigoFacturacion || '',
                 precio: data.PrecioAntesIVA || 0,
                 ficha: data.FichaTecnica || '',
@@ -148,7 +153,7 @@ function renderTable(filter = currentFilter) {
                 tr.innerHTML = `
                     <td class="cell-img" data-label="Imagen">
                         <div class="img-container">
-                            <img src="${item.img || ''}" alt="${item.nombre}" loading="lazy" onerror="this.style.display='none'">
+                            <img src="${item.img || ''}" ${item.imgRespaldo ? `data-alt="${item.imgRespaldo}"` : ''} alt="${item.nombre}" loading="lazy" onerror="sieluImgFallback(this)">
                         </div>
                     </td>
                     <td class="cell-name" data-label="Nombre">
@@ -204,6 +209,7 @@ async function getImageDataFromUrl(url) {
     if (!url) return null;
     try {
         const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const blob = await response.blob();
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -326,7 +332,8 @@ async function generatePDF(includePrices = true, categoryFilter = null) {
             const adjustment = getGlobalAdjustment() / 100;
 
             for (const item of grouped[cat]) {
-                const imgInfo = await getImageDataFromUrl(item.img);
+                // Primary link first; the backup copy when the primary can't be downloaded
+                const imgInfo = (await getImageDataFromUrl(item.img)) || (await getImageDataFromUrl(item.imgRespaldo));
                 const adjustedPrice = item.precio * (1 + adjustment);
 
                 const row = [

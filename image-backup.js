@@ -23,6 +23,27 @@ export function isBackupConfigured(config) {
     return Boolean(config && config.cloudName && config.uploadPreset);
 }
 
+// The backup stored in a product document, or '' when it was made from a different primary link
+// than the current one (the primary was changed afterwards, so the backup shows an old image).
+export function currentBackup(data, field) {
+    const backup = data[field.backup] || '';
+    return backup && data[field.origin] === (data[field.primary] || '') ? backup : '';
+}
+
+// For markup-built <img> tags: `onerror="sieluImgFallback(this)"` + `data-alt="<backup url>"` swaps in
+// the backup once, then hides the image if that fails too.
+export function installImageFallback() {
+    window.sieluImgFallback = img => {
+        const alt = img.dataset.alt;
+        if (alt) {
+            img.dataset.alt = '';
+            img.src = alt;
+        } else {
+            img.style.display = 'none';
+        }
+    };
+}
+
 async function postToCloudinary(config, file) {
     const body = new FormData();
     body.append('file', file);

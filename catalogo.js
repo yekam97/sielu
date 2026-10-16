@@ -1,6 +1,7 @@
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "./firebase-config.js";
 import { PageFlip } from "page-flip";
+import { BACKUP_FIELDS, currentBackup } from "./image-backup.js";
 
 let allProducts = [];
 let categoryOrder = [];
@@ -215,9 +216,9 @@ async function fetchProducts() {
                 especificaciones: data.Especificaciones || '',
                 imgContexto: data.ImgContexto || '',
                 dibujo: data.Dibujo || '',
-                imgRespaldo: data.ImagenRespaldo || '',
-                imgContextoRespaldo: data.ImgContextoRespaldo || '',
-                dibujoRespaldo: data.DibujoRespaldo || '',
+                imgRespaldo: currentBackup(data, BACKUP_FIELDS[0]),
+                imgContextoRespaldo: currentBackup(data, BACKUP_FIELDS[2]),
+                dibujoRespaldo: currentBackup(data, BACKUP_FIELDS[1]),
                 grupoId: data.GrupoId || '',
                 nombreCatalogo: data.NombreCatalogo || '',
                 colorSwatch: data.ColorSwatch || '',
