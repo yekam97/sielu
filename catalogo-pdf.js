@@ -44,7 +44,10 @@ function hexToRgb(hex) {
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-async function loadAndEncode(url, { maxDim, cropRatio }) {
+// `blend` is the tile color the image sits on in the PDF: the image is multiplied onto it, like the
+// online catalog's `mix-blend-mode: multiply`, so a white/transparent photo background takes the
+// tile color instead of showing as a white box.
+async function loadAndEncode(url, { maxDim, cropRatio, blend }) {
     const response = await fetch(url, { mode: 'cors' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const bitmap = await createImageBitmap(await response.blob());
@@ -67,8 +70,9 @@ async function loadAndEncode(url, { maxDim, cropRatio }) {
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = blend ? `rgb(${blend.join(',')})` : '#ffffff';
     ctx.fillRect(0, 0, w, h);
+    if (blend) ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, w, h);
     bitmap.close?.();
     return { data: canvas.toDataURL('image/jpeg', 0.82), w, h };
@@ -79,7 +83,7 @@ async function loadAndEncode(url, { maxDim, cropRatio }) {
 function fetchImage(sources, options) {
     const list = [].concat(sources || []).filter(Boolean);
     if (!list.length) return Promise.resolve(null);
-    const key = `${list.join('|')}|${options.maxDim}|${options.cropRatio || ''}`;
+    const key = `${list.join('|')}|${options.maxDim}|${options.cropRatio || ''}|${(options.blend || []).join(',')}`;
     if (!imageCache.has(key)) {
         imageCache.set(key, (async () => {
             for (let i = 0; i < list.length; i++) {
@@ -356,8 +360,8 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     categories.forEach(cat => {
         add(cat.image, 'cover', { maxDim: 1500, cropRatio: COVER_RATIO });
         cat.pages.forEach(page => page.cards.forEach(card => {
-            card.photos.forEach(sources => add(sources, 'photo', { maxDim: 380 }));
-            add(card.drawing, 'drawing', { maxDim: 900 });
+            card.photos.forEach(sources => add(sources, 'photo', { maxDim: 380, blend: TILE }));
+            add(card.drawing, 'drawing', { maxDim: 900, blend: BOX });
         }));
     });
 
