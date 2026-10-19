@@ -2143,6 +2143,7 @@ textarea {
 /* Image backups (Cloudinary) in the configurator */
 .catalog-config-backup-panel {
     flex-basis: 100%;
+    order: 2;
     border-top: 1px solid #ece7db;
     padding-top: 0.9rem;
     font-size: 0.85rem;
@@ -2361,4 +2362,33 @@ textarea {
 .catalog-config-accessory .catalog-config-feedback {
     font-style: normal;
     font-weight: 400;
+}
+
+/* "Falta: ..." note on configurator cards and the pending breakdown in the status panel */
+.catalog-config-missing {
+    margin: 0.45rem 0 0;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #8a5a00;
+    background: #fbeed8;
+    border-radius: 6px;
+    padding: 0.25rem 0.55rem;
+}
+
+.catalog-config-missing[hidden] {
+    display: none;
+}
+
+.catalog-config-missing--group {
+    grid-column: 1 / -1;
+    margin: 0;
+    justify-self: start;
+}
+
+.catalog-config-status-breakdown {
+    flex-basis: 100%;
+    order: 1;
+    margin: 0;
+    font-size: 0.82rem;
+    color: #8a5a00;
 }

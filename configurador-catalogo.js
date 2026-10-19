@@ -117,9 +117,38 @@ async function normalizeOrphanGroups() {
 
 // Products set to "No disponible" in Administración never show in the visual catalog, so the
 // configurator hides them too (they stay in allProducts so group bookkeeping still sees them).
-// A product is "pending" when it is available but has no technical specifications loaded yet.
+// What the catalog still needs from a product: its technical specifications, its photo and its
+// dimensions drawing. The context image is optional (it isn't shown in the catalog right now), so
+// it never counts as missing.
+const REQUIRED_DATA = [
+    { key: 'specs', label: 'especificaciones', plural: 'sin especificaciones', has: p => Boolean(p.specifications.trim()) },
+    { key: 'photo', label: 'foto', plural: 'sin foto', has: p => Boolean(p.image) },
+    { key: 'drawing', label: 'dibujo de dimensiones', plural: 'sin dibujo', has: p => Boolean(p.drawing) }
+];
+
+function missingData(product) {
+    return REQUIRED_DATA.filter(item => !item.has(product));
+}
+
+// A product is "pending" when it is available but is still missing something the catalog needs.
 function isPending(product) {
-    return product.available && !product.specifications.trim();
+    return product.available && missingData(product).length > 0;
+}
+
+// "Falta: foto, dibujo..." line for a card (a merged group lists what its members lack together).
+// Call .update() after the card's data changes.
+function buildMissingNote(products) {
+    const note = document.createElement('p');
+    note.className = 'catalog-config-missing';
+    note.update = () => {
+        const labels = REQUIRED_DATA
+            .filter(item => products.some(product => !item.has(product)))
+            .map(item => item.label);
+        note.hidden = labels.length === 0;
+        note.textContent = labels.length ? `Falta: ${labels.join(', ')}` : '';
+    };
+    note.update();
+    return note;
 }
 
 function renderStatusPanel() {
@@ -133,7 +162,7 @@ function renderStatusPanel() {
     stats.className = 'catalog-config-status-stats';
     [
         [available.length, 'disponibles en el catálogo'],
-        [available.length - pending.length, 'con información cargada'],
+        [available.length - pending.length, 'con información completa'],
         [pending.length, 'pendientes por cargar', pending.length > 0]
     ].forEach(([value, label, warn]) => {
         const stat = document.createElement('div');
@@ -144,6 +173,18 @@ function renderStatusPanel() {
         stats.appendChild(stat);
     });
     statusPanel.appendChild(stats);
+
+    // How many products lack each kind of data (a product can lack several)
+    if (pending.length) {
+        const breakdown = document.createElement('p');
+        breakdown.className = 'catalog-config-status-breakdown';
+        breakdown.textContent = 'Pendientes: ' + REQUIRED_DATA
+            .map(item => [available.filter(p => !item.has(p)).length, item.plural])
+            .filter(([count]) => count > 0)
+            .map(([count, label]) => `${count} ${label}`)
+            .join(' · ');
+        statusPanel.appendChild(breakdown);
+    }
 
     const actions = document.createElement('div');
     actions.className = 'catalog-config-status-actions';
@@ -289,8 +330,10 @@ async function runBulkBackup(onProgress) {
 
 function getOrderedGroups() {
     const filter = searchInput.value.trim().toLowerCase();
+    // "Only pending" keeps a merged group whole when any of its members is pending
+    const pendingGroups = new Set(allProducts.filter(p => p.groupId && isPending(p)).map(p => p.groupId));
     const products = allProducts.filter(product => product.available
-        && (!showOnlyPending || isPending(product))
+        && (!showOnlyPending || isPending(product) || pendingGroups.has(product.groupId))
         && (!filter || [product.name, product.code, product.category]
             .some(value => value.toLowerCase().includes(filter))));
     const groups = new Map();
@@ -888,6 +931,8 @@ function renderSingleCard(product) {
     codeRow.append(codeEl, buildColorInput(product));
     title.appendChild(codeRow);
     title.appendChild(buildAccessoryToggle([product]));
+    const missingNote = buildMissingNote([product]);
+    title.appendChild(missingNote);
     identity.appendChild(title);
     form.appendChild(identity);
 
@@ -932,6 +977,8 @@ function renderSingleCard(product) {
             product.fields.ImgContexto = update.ImgContexto;
             product.fields.Dibujo = update.Dibujo;
             feedback.textContent = 'Guardado';
+            missingNote.update();
+            renderStatusPanel();
             backupRow.refresh();
             backupRow.autoBackup(['drawing', 'context']);
         } catch (error) {
@@ -980,6 +1027,9 @@ function renderGroupCard(card) {
     const accessoryToggle = buildAccessoryToggle(card.members);
     accessoryToggle.classList.add('catalog-config-accessory--group');
     form.appendChild(accessoryToggle);
+    const missingNote = buildMissingNote(card.members);
+    missingNote.classList.add('catalog-config-missing--group');
+    form.appendChild(missingNote);
 
     const fields = document.createElement('div');
     fields.className = 'catalog-config-fields';
@@ -1031,6 +1081,8 @@ function renderGroupCard(card) {
                 member.fields.Dibujo = update.Dibujo;
             });
             feedback.textContent = 'Guardado';
+            missingNote.update();
+            renderStatusPanel();
             backupRow.refresh();
             backupRow.autoBackup(['drawing', 'context']);
         } catch (error) {
