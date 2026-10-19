@@ -320,6 +320,19 @@ function drawAccessory(doc, card, images, x, y, w, h) {
     }
 }
 
+// jsPDF's align:'center' ignores charSpace, so letter-spaced text lands off-center; measure it
+// ourselves (text width + the gaps between letters) and draw it left-aligned instead.
+function centerText(doc, text, y, charSpace, dx = 0) {
+    const width = doc.getTextWidth(text) + charSpace * (text.length - 1);
+    doc.text(text, (PAGE_W - width) / 2 + dx, y, { charSpace });
+}
+
+// "Octubre 2026": month and year of the download
+function monthLabel(date = new Date()) {
+    const month = date.toLocaleDateString('es-CO', { month: 'long' });
+    return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getFullYear()}`;
+}
+
 function pageBackground(doc) {
     doc.setFillColor(...CREAM);
     doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
@@ -377,22 +390,30 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     let pageNumber = 1;
     const tocEntries = [];
 
-    // Front cover
+    // Front cover: logo, "CATÁLOGO" and the month/year the PDF was downloaded
     pageBackground(doc);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(...MUTED);
-    doc.text('S I E L U', PAGE_W / 2, PAGE_H / 2 - 22, { align: 'center' });
+    const frontLogo = images.get('/logo.png|logo');
+    if (frontLogo) {
+        const lw = 60;
+        const lh = lw * (frontLogo.h / frontLogo.w);
+        doc.addImage(frontLogo.data, 'JPEG', (PAGE_W - lw) / 2 - 1, PAGE_H / 2 - 16 - lh, lw, lh);
+    } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...MUTED);
+        doc.text('S I E L U', PAGE_W / 2, PAGE_H / 2 - 22, { align: 'center' });
+    }
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(34);
     doc.setTextColor(...DARK);
-    doc.text('CATÁLOGO TÉCNICO', PAGE_W / 2, PAGE_H / 2 - 4, { align: 'center', charSpace: 1 });
+    // dx: optical correction for the glyph side bearings (measured on the rendered page)
+    centerText(doc, 'CATÁLOGO', PAGE_H / 2 + 2, 1, -1.6);
     doc.setDrawColor(...GOLD);
     doc.setLineWidth(0.4);
-    doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + 6, PAGE_W / 2 + 14, PAGE_H / 2 + 6);
-    doc.setFontSize(9);
+    doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + 12, PAGE_W / 2 + 14, PAGE_H / 2 + 12);
+    doc.setFontSize(10);
     doc.setTextColor(...MUTED);
-    doc.text('VOLUMEN 01', PAGE_W / 2, PAGE_H / 2 + 15, { align: 'center', charSpace: 1 });
+    centerText(doc, pdfText(monthLabel()).toUpperCase(), PAGE_H / 2 + 21, 1);
 
     // Reserve the contents page; it is filled in once page numbers are known
     doc.addPage([PAGE_W, PAGE_H], 'landscape');
@@ -421,7 +442,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(26);
             doc.setTextColor(...DARK);
-            doc.text(pdfText(cat.name).toUpperCase(), PAGE_W / 2, PAGE_H / 2, { align: 'center', charSpace: 1 });
+            centerText(doc, pdfText(cat.name).toUpperCase(), PAGE_H / 2, 1);
             doc.setDrawColor(...GOLD);
             doc.setLineWidth(0.4);
             doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + 7, PAGE_W / 2 + 14, PAGE_H / 2 + 7);
@@ -481,7 +502,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(...MUTED);
-    doc.text('SIELU.DESIGN', PAGE_W / 2, PAGE_H / 2 + 6, { align: 'center', charSpace: 0.6 });
+    centerText(doc, 'SIELU.DESIGN', PAGE_H / 2 + 6, 0.6);
     doc.text('+57 314 2188971', PAGE_W / 2, PAGE_H / 2 + 12, { align: 'center' });
 
     // Contents page, now that page numbers exist
@@ -490,7 +511,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(22);
     doc.setTextColor(...DARK);
-    doc.text('CONTENIDO', PAGE_W / 2, 26, { align: 'center', charSpace: 0.8 });
+    centerText(doc, 'CONTENIDO', 26, 0.8);
     const colW = (PAGE_W - MARGIN_X * 2 - 20) / 2;
     const perCol = Math.ceil(tocEntries.length / 2);
     const rowH = Math.min(8, (PAGE_H - 50) / perCol);

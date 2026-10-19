@@ -697,6 +697,12 @@ function buildFlipAccessoryHtml(cardData, cat) {
     `;
 }
 
+// "Octubre 2026": month and year shown on the flipbook cover (the PDF cover uses the download date)
+function monthLabel(date = new Date()) {
+    const month = date.toLocaleDateString('es-CO', { month: 'long' });
+    return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getFullYear()}`;
+}
+
 // RENDER FLIPBOOK VIEW (Landscape Layout to match List view card)
 // PageFlip's destroy() removes the container element from the DOM, so it must be recreated
 // before each render (opening the flipbook a second time used to crash on a null container).
@@ -742,10 +748,10 @@ function renderFlipbook() {
     coverPage.style.padding = '0';
     coverPage.innerHTML = `
         <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
-            <p style="font-family: var(--font-sans); font-size: 0.9rem; letter-spacing: 6px; color: var(--sielu-text-muted); text-transform: uppercase; margin-bottom: 1.5rem;">S I E L U</p>
-            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 3.5rem; font-weight: 300; color: var(--sielu-text-dark); margin: 0; letter-spacing: 3px; text-transform: uppercase; line-height: 1.2;">Catálogo Técnico</h1>
+            <img src="/logo.png" style="max-width: 220px; margin-bottom: 1.75rem; display: block;" alt="Sielu" onerror="this.style.display='none'">
+            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 3.5rem; font-weight: 300; color: var(--sielu-text-dark); margin: 0; padding-left: 3px; letter-spacing: 3px; text-transform: uppercase; line-height: 1.2;">Catálogo</h1>
             <div style="width: 80px; height: 1px; background-color: var(--sielu-accent); margin: 1.5rem auto 1.5rem;"></div>
-            <p style="font-family: var(--font-sans); font-size: 0.8rem; letter-spacing: 3px; color: var(--sielu-text-muted); text-transform: uppercase;">Volumen 01</p>
+            <p style="font-family: var(--font-sans); font-size: 0.8rem; padding-left: 3px; letter-spacing: 3px; color: var(--sielu-text-muted); text-transform: uppercase;">${monthLabel()}</p>
         </div>
     `;
     container.appendChild(coverPage);
