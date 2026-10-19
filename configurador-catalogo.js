@@ -78,6 +78,7 @@ async function fetchProducts() {
                 catalogName: data.NombreCatalogo || '',
                 colorSwatch: data.ColorSwatch || '',
                 accessory: data.Accesorio === true,
+                noDrawing: data.DibujoNoAplica === true,
                 fields: Object.fromEntries(BACKUP_FIELDS.flatMap(f => [f.primary, f.backup, f.origin])
                     .map(name => [name, data[name] || ''])),
                 available: (data.Estado || 'Disponible') !== 'No disponible'
@@ -123,7 +124,8 @@ async function normalizeOrphanGroups() {
 const REQUIRED_DATA = [
     { key: 'specs', label: 'especificaciones', plural: 'sin especificaciones', has: p => Boolean(p.specifications.trim()) },
     { key: 'photo', label: 'foto', plural: 'sin foto', has: p => Boolean(p.image) },
-    { key: 'drawing', label: 'dibujo de dimensiones', plural: 'sin dibujo', has: p => Boolean(p.drawing) }
+    // Some products (e.g. accessories) have no drawing; "El dibujo no aplica" stops it counting as missing
+    { key: 'drawing', label: 'dibujo de dimensiones', plural: 'sin dibujo', has: p => p.noDrawing || Boolean(p.drawing) }
 ];
 
 function missingData(product) {
@@ -459,6 +461,43 @@ function buildAccessoryToggle(products) {
             feedback.textContent = 'Guardado';
         } catch (error) {
             console.error('Error al guardar si es accesorio:', error);
+            checkbox.checked = !value;
+            feedback.textContent = 'No se pudo guardar';
+        } finally {
+            checkbox.disabled = false;
+            setTimeout(() => feedback.textContent = '', 2500);
+        }
+    });
+    return label;
+}
+
+// "El dibujo no aplica" checkbox under the drawing URL, saved immediately. It only affects the
+// "missing data" count; on a merged group it applies to every member.
+function buildNoDrawingToggle(products, onChange) {
+    const label = document.createElement('label');
+    label.className = 'catalog-config-accessory catalog-config-no-drawing';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = products.some(product => product.noDrawing);
+    const text = document.createElement('span');
+    text.textContent = 'No aplica';
+    label.title = 'Marca esta casilla si este producto no lleva dibujo: dejará de aparecer como faltante';
+    const feedback = document.createElement('em');
+    feedback.className = 'catalog-config-feedback';
+    label.append(checkbox, text, feedback);
+
+    checkbox.addEventListener('change', async () => {
+        const value = checkbox.checked;
+        checkbox.disabled = true;
+        feedback.textContent = 'Guardando...';
+        try {
+            await Promise.all(products.map(product =>
+                updateDoc(doc(db, 'productos_sielu', product.id), { DibujoNoAplica: value })));
+            products.forEach(product => { product.noDrawing = value; });
+            feedback.textContent = 'Guardado';
+            onChange();
+        } catch (error) {
+            console.error('Error al guardar si el dibujo aplica:', error);
             checkbox.checked = !value;
             feedback.textContent = 'No se pudo guardar';
         } finally {
@@ -940,6 +979,10 @@ function renderSingleCard(product) {
     fields.className = 'catalog-config-fields';
     const contextInput = addField(fields, 'URL imagen en contexto', 'context-image-input', product.contextImage);
     const drawingInput = addField(fields, 'URL dibujo técnico', 'drawing-input', product.drawing);
+    drawingInput.parentElement.appendChild(buildNoDrawingToggle([product], () => {
+        missingNote.update();
+        renderStatusPanel();
+    }));
     const specsInput = addField(fields, 'Especificaciones técnicas', 'specifications-input', product.specifications, true);
     form.appendChild(fields);
 
@@ -1038,6 +1081,10 @@ function renderGroupCard(card) {
     nameInput.placeholder = representative.name;
     const contextInput = addField(fields, 'URL imagen en contexto', 'context-image-input', representative.contextImage);
     const drawingInput = addField(fields, 'URL dibujo técnico', 'drawing-input', representative.drawing);
+    drawingInput.parentElement.appendChild(buildNoDrawingToggle(card.members, () => {
+        missingNote.update();
+        renderStatusPanel();
+    }));
     const specsInput = addField(fields, 'Especificaciones técnicas', 'specifications-input', representative.specifications, true);
     form.appendChild(fields);
 
