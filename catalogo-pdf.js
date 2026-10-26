@@ -327,6 +327,34 @@ function centerText(doc, text, y, charSpace, dx = 0) {
     doc.text(text, (PAGE_W - width) / 2 + dx, y, { charSpace });
 }
 
+// Category cover titles can be long ("LINEALES SPOTS RIEL CIRCULAR Y OVALADO"): shrink the font
+// first and, when it still doesn't fit on one line, split it into two so it is never cut off.
+function fitTitle(doc, text, maxW, charSpace, maxSize, minSingleSize) {
+    const measure = value => doc.getTextWidth(value) + charSpace * (value.length - 1);
+    for (let size = maxSize; size >= minSingleSize; size--) {
+        doc.setFontSize(size);
+        if (measure(text) <= maxW) return { lines: [text], size };
+    }
+    const wrap = () => {
+        const lines = [];
+        let current = '';
+        text.split(' ').forEach(word => {
+            const next = current ? `${current} ${word}` : word;
+            if (!current || measure(next) <= maxW) current = next;
+            else { lines.push(current); current = word; }
+        });
+        lines.push(current);
+        return lines;
+    };
+    for (let size = minSingleSize; size >= 14; size--) {
+        doc.setFontSize(size);
+        const lines = wrap();
+        if (lines.length <= 2 && lines.every(line => measure(line) <= maxW)) return { lines, size };
+    }
+    doc.setFontSize(14);
+    return { lines: wrap(), size: 14 };
+}
+
 // "Octubre 2026": month and year of the download
 function monthLabel(date = new Date()) {
     const month = date.toLocaleDateString('es-CO', { month: 'long' });
@@ -434,15 +462,21 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
             doc.rect(0, PAGE_H - 62, PAGE_W, 62, 'F');
             doc.restoreGraphicsState();
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(30);
             doc.setTextColor(255, 255, 255);
-            doc.text(pdfText(cat.name).toUpperCase(), MARGIN_X + 6, PAGE_H - 20, { charSpace: 1 });
+            const title = fitTitle(doc, pdfText(cat.name).toUpperCase(), PAGE_W - (MARGIN_X + 6) * 2, 1, 30, 22);
+            const titleLead = title.size * 0.3528 * 1.3;
+            title.lines.forEach((line, lineIndex) => {
+                doc.text(line, MARGIN_X + 6, PAGE_H - 20 - (title.lines.length - 1 - lineIndex) * titleLead, { charSpace: 1 });
+            });
         } else {
             pageBackground(doc);
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(26);
             doc.setTextColor(...DARK);
-            centerText(doc, pdfText(cat.name).toUpperCase(), PAGE_H / 2, 1);
+            const plainTitle = fitTitle(doc, pdfText(cat.name).toUpperCase(), PAGE_W - MARGIN_X * 2, 1, 26, 20);
+            const plainLead = plainTitle.size * 0.3528 * 1.3;
+            plainTitle.lines.forEach((line, lineIndex) => {
+                centerText(doc, line, PAGE_H / 2 - (plainTitle.lines.length - 1 - lineIndex) * plainLead, 1);
+            });
             doc.setDrawColor(...GOLD);
             doc.setLineWidth(0.4);
             doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + 7, PAGE_W / 2 + 14, PAGE_H / 2 + 7);
