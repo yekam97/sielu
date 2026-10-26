@@ -33,10 +33,10 @@
 
     <div class="controls-container">
         <a href="index.html" class="btn-primary" style="background: #eee;">Volver al Inicio</a>
-        <a href="configurador-catalogo.html" class="btn-primary">Configurador de Catálogo</a>
+        <a href="configurador-catalogo.html" class="btn-primary" data-admin-only>Configurador de Catálogo</a>
     </div>
 
-    <div class="admin-container">
+    <div class="admin-container" data-admin-only>
         <h2 style="margin-bottom: 1.5rem; font-family: var(--font-serif);">Agregar / Editar Producto</h2>
         <form id="productForm">
             <input type="hidden" id="productId">

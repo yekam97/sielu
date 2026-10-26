@@ -8,12 +8,23 @@ let cloudinaryConfig = { cloudName: DEFAULT_CLOUD_NAME, uploadPreset: '' };
 
 // --- AUTHENTICATION ---
 const PASSWORD = "Sielu2026";
+// Second, restricted access: it can only fill in each product's technical sheet URL (no adding,
+// editing, deleting, availability or ordering). It uses its own session key so it never opens the
+// catalog configurator, which only checks 'sielu_auth'.
+const DESIGN_PASSWORD = "diseno";
 const loginModal = document.getElementById('loginModal');
 const passwordInput = document.getElementById('passwordInput');
 const loginBtn = document.getElementById('loginBtn');
 const errorMsg = document.getElementById('errorMsg');
 
-if (!sessionStorage.getItem('sielu_auth')) {
+// "diseño", "Diseño" and "diseno" all work (the ñ is awkward on some keyboards)
+function normalizePassword(value) {
+    return value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+let isDesigner = !sessionStorage.getItem('sielu_auth') && Boolean(sessionStorage.getItem('sielu_auth_design'));
+
+if (!sessionStorage.getItem('sielu_auth') && !sessionStorage.getItem('sielu_auth_design')) {
     loginModal.style.display = 'flex';
     document.body.style.overflow = 'hidden'; // Prevent scrolling while logging in
 
@@ -23,18 +34,43 @@ if (!sessionStorage.getItem('sielu_auth')) {
     });
 } else {
     // Already authenticated
+    applyRole();
     fetchProducts();
 }
 
 function checkPassword() {
     if (passwordInput.value === PASSWORD) {
         sessionStorage.setItem('sielu_auth', 'true');
-        loginModal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-        fetchProducts();
+        sessionStorage.removeItem('sielu_auth_design');
+        isDesigner = false;
+    } else if (normalizePassword(passwordInput.value) === DESIGN_PASSWORD) {
+        sessionStorage.setItem('sielu_auth_design', 'true');
+        isDesigner = true;
     } else {
         errorMsg.style.display = 'block';
+        return;
     }
+    loginModal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+    applyRole();
+    fetchProducts();
+}
+
+// Restricted access: hide everything except the product list (where only the technical sheet URL
+// can be edited).
+function applyRole() {
+    document.body.classList.toggle('role-designer', isDesigner);
+    if (!isDesigner) return;
+    document.querySelector('.title-pre').textContent = 'Fichas técnicas';
+    document.querySelectorAll('[data-admin-only]').forEach(el => el.remove());
+    document.querySelectorAll('#adminTable thead th').forEach(th => {
+        const label = th.textContent.trim();
+        if (label === 'Orden' || label === 'Acciones') th.remove();
+    });
+    const head = document.querySelector('#adminTable thead tr');
+    const fichaHead = document.createElement('th');
+    fichaHead.textContent = 'URL Ficha técnica (PDF)';
+    head.appendChild(fichaHead);
 }
 
 
@@ -50,6 +86,7 @@ async function fetchConfig() {
 }
 
 async function saveCategoryOrder() {
+    if (isDesigner) return;
     if (!configLoaded) {
         console.warn("No se puede guardar el orden de categorías porque la carga inicial falló (¿Permisos?)");
         return;
@@ -165,6 +202,16 @@ function renderTable(filter = '') {
 
     sortedCategories.forEach((cat, index) => {
         const isCollapsed = collapsedCategories.has(cat);
+        const catOrderControl = isDesigner ? '' : `
+            <div class="category-controls">
+                <span style="font-size: 0.8rem; margin-right: 5px;">Orden:</span>
+                <input type="number"
+                       class="cat-order-input"
+                       value="${categoryOrder.indexOf(cat) + 1}"
+                       onclick="event.stopPropagation()"
+                       onchange="window.updateCategoryOrder(this, '${cat.replace(/'/g, "\\'")}', this.value)"
+                       style="width: 50px; padding: 2px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
+            </div>`;
 
         const catRow = document.createElement('tr');
         catRow.className = 'category-header' + (isCollapsed ? ' collapsed' : '');
@@ -179,15 +226,7 @@ function renderTable(filter = '') {
                 <span class="toggle-icon">${isCollapsed ? '▶' : '▼'}</span>
                 <span>${cat}</span>
             </div>
-            <div class="category-controls">
-                <span style="font-size: 0.8rem; margin-right: 5px;">Orden:</span>
-                <input type="number" 
-                       class="cat-order-input" 
-                       value="${categoryOrder.indexOf(cat) + 1}" 
-                       onclick="event.stopPropagation()"
-                       onchange="window.updateCategoryOrder(this, '${cat.replace(/'/g, "\\'")}', this.value)"
-                       style="width: 50px; padding: 2px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
-            </div>
+            ${catOrderControl}
         `;
 
         catCell.onclick = () => {
@@ -206,6 +245,27 @@ function renderTable(filter = '') {
         grouped[cat].forEach((item) => {
             const tr = document.createElement('tr');
             if (isCollapsed) tr.classList.add('hidden');
+
+            if (isDesigner) {
+                // Read-only row + the only editable thing: the technical sheet URL
+                tr.innerHTML = `
+                    <td data-label="Imagen"><img src="${item.img || ''}" ${item.imgRespaldo ? `data-alt="${item.imgRespaldo}"` : ''} class="product-img" onerror="sieluImgFallback(this)"></td>
+                    <td data-label="Producto">
+                        <strong>${item.nombre}</strong><br>
+                        <small>${item.cat}</small>
+                    </td>
+                    <td data-label="Código">${item.codigo}</td>
+                    <td data-label="Precio">$${parseFloat(item.precio).toLocaleString('es-CO')}</td>
+                    <td data-label="Estado">${item.estado}</td>
+                    <td data-label="URL Ficha técnica (PDF)">
+                        <input type="url" class="ficha-input" value="${escapeAttr(item.ficha)}" placeholder="https://..."
+                               onchange="window.updateFicha(this, '${item.id}', this.value)"
+                               style="width: 100%; min-width: 220px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </td>
+                `;
+                tbody.appendChild(tr);
+                return;
+            }
 
             tr.innerHTML = `
                 <td data-label="Imagen"><img src="${item.img || ''}" ${item.imgRespaldo ? `data-alt="${item.imgRespaldo}"` : ''} class="product-img" onerror="sieluImgFallback(this)"></td>
@@ -237,8 +297,31 @@ function renderTable(filter = '') {
     });
 }
 
+function escapeAttr(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
 // --- WINDOW HELPERS ---
+// The restricted access only gets updateFicha; every other write is refused for it.
+window.updateFicha = async (inputEl, id, value) => {
+    const url = value.trim();
+    inputEl.style.background = '#e3f2fd'; // Azul: Guardando
+    try {
+        await updateDoc(doc(db, "productos_sielu", id), { FichaTecnica: url, fechaUpdate: new Date() });
+        const item = allProducts.find(p => p.id === id);
+        if (item) item.ficha = url;
+        inputEl.value = url;
+        inputEl.style.background = '#c8e6c9'; // Verde: Éxito
+        setTimeout(() => inputEl.style.background = '', 2000);
+    } catch (e) {
+        console.error("Error al guardar la ficha técnica:", e);
+        inputEl.style.background = '#ffcdd2'; // Rojo: Error
+        alert("No se pudo guardar la ficha técnica.");
+    }
+};
+
 window.updateCategoryOrder = async (inputEl, catName, newOrder) => {
+    if (isDesigner) return;
     let newIdx = parseInt(newOrder) - 1; // 1-based user input
     if (isNaN(newIdx)) return;
 
@@ -269,6 +352,7 @@ window.updateCategoryOrder = async (inputEl, catName, newOrder) => {
 };
 
 window.updateProductOrder = async (inputEl, id, newOrder) => {
+    if (isDesigner) return;
     const val = Number(newOrder); // Usar Number para consistencia con view.js
     if (isNaN(val)) return;
 
@@ -297,6 +381,7 @@ window.updateProductOrder = async (inputEl, id, newOrder) => {
 };
 
 window.toggleStatus = async (id, currentStatus) => {
+    if (isDesigner) return;
     try {
         const newStatus = currentStatus === 'Disponible' ? 'No disponible' : 'Disponible';
         await updateDoc(doc(db, "productos_sielu", id), { Estado: newStatus });
@@ -307,6 +392,7 @@ window.toggleStatus = async (id, currentStatus) => {
 };
 
 window.deleteItem = async (id) => {
+    if (isDesigner) return;
     if (confirm('¿Eliminar este producto?')) {
         try {
             await deleteDoc(doc(db, "productos_sielu", id));
@@ -318,6 +404,7 @@ window.deleteItem = async (id) => {
 };
 
 window.editItem = (id) => {
+    if (isDesigner) return;
     const item = allProducts.find(i => i.id === id);
     if (!item) return;
 
@@ -381,6 +468,7 @@ cancelBtn.addEventListener('click', resetForm);
 
 form.addEventListener('submit', async e => {
     e.preventDefault();
+    if (isDesigner) return;
     const id = document.getElementById('productId').value;
     const cat = document.getElementById('cat').value.trim();
     const data = {
