@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Productos - Sielu</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="home-page" data-no-prices>
+    <header class="catalog-header">
+        <div class="header-left">
+            <span class="brand-logo">sielu</span>
+        </div>
+    </header>
+
+    <main class="view-main">
+        <!-- Section Label -->
+        <div class="section-label-container">
+            <p class="hero-label">LISTA DE PRODUCTOS</p>
+            <div class="label-underline"></div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="controls-bar">
+            <div class="search-wrapper">
+                <i data-lucide="search"></i>
+                <input type="text" id="searchInput" placeholder="Buscar por nombre, código o descripción...">
+            </div>
+            <div class="export-actions">
+                <button id="btnDownload" class="btn-tan">
+                    <i data-lucide="download"></i>
+                    Descargar PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Price Table -->
+        <div class="price-table-wrapper">
+            <table id="priceTable">
+                <thead>
+                    <tr>
+                        <th class="col-img">Imagen</th>
+                        <th class="col-name">Nombre</th>
+                        <th class="col-code">Facturación</th>
+                        <th class="col- ficha">Ficha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 5rem;">Cargando productos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Lucide Icons Script -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+    <script type="module" src="view.js"></script>
+</body>
+
+</html>

@@ -7,6 +7,7 @@ export default defineConfig({
             input: {
                 main: resolve(__dirname, 'index.html'),
                 view: resolve(__dirname, 'view.html'),
+                listaProductos: resolve(__dirname, 'lista-productos.html'),
                 admin: resolve(__dirname, 'admin.html'),
                 configuradorCatalogo: resolve(__dirname, 'configurador-catalogo.html'),
                 catalogo: resolve(__dirname, 'catalogo.html'),

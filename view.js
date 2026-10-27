@@ -5,6 +5,9 @@ import autoTable from "jspdf-autotable";
 import { BACKUP_FIELDS, currentBackup, installImageFallback } from "./image-backup.js";
 
 installImageFallback();
+// lista-productos.html reuses this script for the same list without prices (<body data-no-prices>)
+const NO_PRICES = document.body.hasAttribute('data-no-prices');
+const TABLE_COLUMNS = NO_PRICES ? 4 : 5;
 const PHOTO_FIELD = BACKUP_FIELDS.find(f => f.key === 'photo');
 
 let allProducts = [];
@@ -63,7 +66,7 @@ async function fetchProducts() {
 
 function showEmptyState() {
     const tbody = document.querySelector('#priceTable tbody');
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 5rem;">No se pudieron cargar los datos. Verifica la configuración de Firebase.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${TABLE_COLUMNS}" style="text-align: center; padding: 5rem;">No se pudieron cargar los datos. Verifica la configuración de Firebase.</td></tr>`;
 }
 
 let currentFilter = '';
@@ -108,7 +111,7 @@ function renderTable(filter = currentFilter) {
     });
 
     if (items.length === 0 && allProducts.length > 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 5rem;">No se encontraron resultados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${TABLE_COLUMNS}" style="text-align: center; padding: 5rem;">No se encontraron resultados.</td></tr>`;
         return;
     }
 
@@ -118,7 +121,7 @@ function renderTable(filter = currentFilter) {
         const catRow = document.createElement('tr');
         catRow.className = `category-row ${isCollapsed ? 'collapsed' : ''}`;
         catRow.innerHTML = `
-            <td colspan="5">
+            <td colspan="${TABLE_COLUMNS}">
                 <div class="category-header-main">
                     <div class="cat-title-group" style="cursor: pointer;">
                         <i data-lucide="${isCollapsed ? 'plus-circle' : 'minus-circle'}" class="cat-toggle-icon"></i>
@@ -140,7 +143,7 @@ function renderTable(filter = currentFilter) {
 
         catRow.querySelector('.cat-download-btn').onclick = (e) => {
             e.stopPropagation();
-            generatePDF(true, cat);
+            generatePDF(!NO_PRICES, cat);
         };
 
         tbody.appendChild(catRow);
@@ -162,12 +165,12 @@ function renderTable(filter = currentFilter) {
                         </div>
                     </td>
                     <td class="cell-code" data-label="Facturación">${item.codigo}</td>
-                    <td class="cell-price" data-label="Precio Unitario">
+                    ${NO_PRICES ? '' : `<td class="cell-price" data-label="Precio Unitario">
                         <div class="price-group">
                             <span class="price-val">$${Math.round(item.precio * (1 + getGlobalAdjustment() / 100)).toLocaleString('es-CO')}</span>
                             <span class="price-label">COP (Antes de IVA)</span>
                         </div>
-                    </td>
+                    </td>`}
                     <td class="cell-ficha" data-label="Ficha">
                         ${item.ficha ? `<a href="${item.ficha}" target="_blank" class="ficha-link"><i data-lucide="file-text"></i></a>` : '-'}
                     </td>
@@ -195,7 +198,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
 });
 
 // Adjustment handler
-document.getElementById('globalAdjustment').addEventListener('input', () => {
+document.getElementById('globalAdjustment')?.addEventListener('input', () => {
     renderTable();
 });
 
@@ -267,7 +270,7 @@ async function generatePDF(includePrices = true, categoryFilter = null) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(30);
         doc.setTextColor(0, 0, 0);
-        const titleText = categoryFilter ? `${categoryFilter}` : `Lista de Precios ${fullDate}`;
+        const titleText = categoryFilter ? `${categoryFilter}` : `${NO_PRICES ? 'Lista de Productos' : 'Lista de Precios'} ${fullDate}`;
         doc.text(titleText, pageWidth / 2, 25, { align: 'center' });
 
         const logoInfo = await getImageDataFromUrl('logo.png');
@@ -429,7 +432,7 @@ async function generatePDF(includePrices = true, categoryFilter = null) {
             drawFooter(doc, j);
         }
 
-        const fileName = categoryFilter ? `Sielu_${categoryFilter.replace(/\s+/g, '_')}` : `Lista_Precios_Sielu_${fullDate.replace(/\s+/g, '_')}`;
+        const fileName = categoryFilter ? `Sielu_${categoryFilter.replace(/\s+/g, '_')}` : `${NO_PRICES ? 'Lista_Productos_Sielu' : 'Lista_Precios_Sielu'}_${fullDate.replace(/\s+/g, '_')}`;
         doc.save(`${fileName}${includePrices ? '' : '_Sin_Precios'}.pdf`);
 
     } catch (e) {
@@ -441,8 +444,8 @@ async function generatePDF(includePrices = true, categoryFilter = null) {
     }
 }
 
-document.getElementById('btnDownload').addEventListener('click', () => generatePDF(true));
-document.getElementById('btnDownloadNoPrices').addEventListener('click', () => generatePDF(false));
+document.getElementById('btnDownload').addEventListener('click', () => generatePDF(!NO_PRICES));
+document.getElementById('btnDownloadNoPrices')?.addEventListener('click', () => generatePDF(false));
 
 // Initialize
 fetchProducts();
