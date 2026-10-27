@@ -22,6 +22,72 @@ const BOX = [250, 248, 243];
 const IMG_CONCURRENCY = 6;
 const IMG_RETRIES = 3;
 
+// Fonts: Poppins for almost all text (loaded from /fonts, embedded in the PDF). Category names
+// (cover titles, contents list, the small label above each product) stay in Helvetica. If the font
+// files can't be loaded the PDF falls back to Helvetica everywhere.
+const POPPINS = {
+    regular: ['Poppins', 'normal'],
+    italic: ['Poppins', 'italic'],
+    semibold: ['PoppinsSemi', 'normal'],
+    bold: ['Poppins', 'bold']
+};
+const HELVETICA = {
+    regular: ['helvetica', 'normal'],
+    italic: ['helvetica', 'italic'],
+    semibold: ['helvetica', 'bold'],
+    bold: ['helvetica', 'bold']
+};
+const FONT_FILES = [
+    { file: 'Poppins_400Regular.ttf', family: 'Poppins', style: 'normal' },
+    { file: 'Poppins_400Regular_Italic.ttf', family: 'Poppins', style: 'italic' },
+    { file: 'Poppins_700Bold.ttf', family: 'Poppins', style: 'bold' },
+    { file: 'Poppins_600SemiBold.ttf', family: 'PoppinsSemi', style: 'normal' }
+];
+let activeFonts = HELVETICA;
+let fontDataPromise = null;
+
+function useFont(doc, role) {
+    const [family, style] = activeFonts[role];
+    doc.setFont(family, style);
+}
+
+function bufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(binary);
+}
+
+function loadFontData() {
+    if (!fontDataPromise) {
+        fontDataPromise = Promise.all(FONT_FILES.map(async font => {
+            const response = await fetch(`/fonts/${font.file}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return { ...font, data: bufferToBase64(await response.arrayBuffer()) };
+        })).catch(error => {
+            fontDataPromise = null;
+            throw error;
+        });
+    }
+    return fontDataPromise;
+}
+
+async function registerFonts(doc) {
+    try {
+        const fonts = await loadFontData();
+        fonts.forEach(font => {
+            doc.addFileToVFS(font.file, font.data);
+            doc.addFont(font.file, font.family, font.style);
+        });
+        activeFonts = POPPINS;
+    } catch (error) {
+        console.warn('No se pudieron cargar las fuentes del PDF, se usa Helvetica:', error);
+        activeFonts = HELVETICA;
+    }
+}
+
 const imageCache = new Map();
 
 function sleep(ms) {
@@ -159,7 +225,7 @@ function fitValue(doc, text, maxWidth, size) {
 }
 
 function drawSpecs(doc, specs, x, y, w, h, { singleColumn = false, maxRows = 14 } = {}) {
-    doc.setFont('helvetica', 'bold');
+    useFont(doc, 'semibold');
     doc.setFontSize(7.5);
     doc.setTextColor(...GOLD);
     doc.text('ESPECIFICACIONES TÉCNICAS', x, y + 3);
@@ -170,7 +236,7 @@ function drawSpecs(doc, specs, x, y, w, h, { singleColumn = false, maxRows = 14 
     const top = y + 7.5;
     const availH = h - 8;
     if (!specs.length) {
-        doc.setFont('helvetica', 'italic');
+        useFont(doc, 'italic');
         doc.setFontSize(7.5);
         doc.setTextColor(...MUTED);
         doc.text('Sin especificaciones disponibles', x, top + 3);
@@ -191,14 +257,14 @@ function drawSpecs(doc, specs, x, y, w, h, { singleColumn = false, maxRows = 14 
         const baseline = top + row * pitch + pitch * 0.62;
 
         const label = pdfText(spec.label).toUpperCase();
-        doc.setFont('helvetica', 'bold');
+        useFont(doc, 'semibold');
         doc.setFontSize(6.6);
         doc.setTextColor(...DARK);
         const labelFit = fitValue(doc, label, colW * 0.62, 6.6);
         doc.text(labelFit, cx, baseline);
         const labelW = doc.getTextWidth(labelFit);
 
-        doc.setFont('helvetica', 'normal');
+        useFont(doc, 'regular');
         const valueFit = fitValue(doc, pdfText(spec.value), colW - labelW - 4, 7);
         doc.setTextColor(...DARK);
         doc.text(valueFit, cx + colW, baseline, { align: 'right' });
@@ -217,7 +283,7 @@ function drawSpecs(doc, specs, x, y, w, h, { singleColumn = false, maxRows = 14 
 }
 
 function drawDrawing(doc, img, x, y, w, h) {
-    doc.setFont('helvetica', 'bold');
+    useFont(doc, 'semibold');
     doc.setFontSize(7.5);
     doc.setTextColor(...GOLD);
     doc.text('DIMENSIONES', x, y + 3);
@@ -232,7 +298,7 @@ function drawDrawing(doc, img, x, y, w, h) {
 
 function drawCodes(doc, codes, x, y) {
     let cx = x;
-    doc.setFont('helvetica', 'normal');
+    useFont(doc, 'regular');
     doc.setFontSize(8);
     codes.forEach((item, index) => {
         if (index > 0) {
@@ -263,7 +329,7 @@ function drawProduct(doc, card, images, categoryName, y0, blockH) {
     doc.setTextColor(...GOLD);
     doc.text(pdfText(categoryName).toUpperCase(), MARGIN_X, y0 + 3);
 
-    doc.setFont('helvetica', 'bold');
+    useFont(doc, 'bold');
     doc.setFontSize(13);
     doc.setTextColor(...DARK);
     const titleLines = doc.splitTextToSize(pdfText(card.title).toUpperCase(), contentW).slice(0, 2);
@@ -293,7 +359,7 @@ function drawProduct(doc, card, images, categoryName, y0, blockH) {
 // Compact cell for accessories (four per page, 2x2): title + codes, photo(s) on the left, specs
 // on the right with the drawing underneath when there is one.
 function drawAccessory(doc, card, images, x, y, w, h) {
-    doc.setFont('helvetica', 'bold');
+    useFont(doc, 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...DARK);
     const titleLines = doc.splitTextToSize(pdfText(card.title).toUpperCase(), w).slice(0, 2);
@@ -367,7 +433,7 @@ function pageBackground(doc) {
 }
 
 function footer(doc, number, logo) {
-    doc.setFont('helvetica', 'normal');
+    useFont(doc, 'regular');
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
     if (logo) {
@@ -415,6 +481,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     // 2. Layout
     onProgress('layout', 0);
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [PAGE_W, PAGE_H], compress: true });
+    await registerFonts(doc);
     let pageNumber = 1;
     const tocEntries = [];
 
@@ -424,18 +491,18 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     if (frontLogo) {
         const lw = 60;
         const lh = lw * (frontLogo.h / frontLogo.w);
+        // -1: optical correction for the logo's uneven side margins (measured on the rendered page)
         doc.addImage(frontLogo.data, 'JPEG', (PAGE_W - lw) / 2 - 1, PAGE_H / 2 - 16 - lh, lw, lh);
     } else {
-        doc.setFont('helvetica', 'normal');
+        useFont(doc, 'regular');
         doc.setFontSize(10);
         doc.setTextColor(...MUTED);
         doc.text('S I E L U', PAGE_W / 2, PAGE_H / 2 - 22, { align: 'center' });
     }
-    doc.setFont('helvetica', 'normal');
+    useFont(doc, 'regular');
     doc.setFontSize(34);
     doc.setTextColor(...DARK);
-    // dx: optical correction for the glyph side bearings (measured on the rendered page)
-    centerText(doc, 'CATÁLOGO', PAGE_H / 2 + 2, 1, -1.6);
+    centerText(doc, 'CATÁLOGO', PAGE_H / 2 + 2, 1);
     doc.setDrawColor(...GOLD);
     doc.setLineWidth(0.4);
     doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + 12, PAGE_W / 2 + 14, PAGE_H / 2 + 12);
@@ -533,7 +600,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
         const lh = lw * (logo.h / logo.w);
         doc.addImage(logo.data, 'JPEG', (PAGE_W - lw) / 2, PAGE_H / 2 - lh - 6, lw, lh);
     }
-    doc.setFont('helvetica', 'normal');
+    useFont(doc, 'regular');
     doc.setFontSize(9);
     doc.setTextColor(...MUTED);
     centerText(doc, 'SIELU.DESIGN', PAGE_H / 2 + 6, 0.6);
@@ -542,7 +609,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     // Contents page, now that page numbers exist
     doc.setPage(tocPage);
     pageBackground(doc);
-    doc.setFont('helvetica', 'normal');
+    useFont(doc, 'regular');
     doc.setFontSize(22);
     doc.setTextColor(...DARK);
     centerText(doc, 'CONTENIDO', 26, 0.8);
@@ -559,7 +626,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
         doc.setTextColor(...DARK);
         const name = fitValue(doc, pdfText(entry.name).toUpperCase(), colW - 14, 8);
         doc.text(name, x, y);
-        doc.setFont('helvetica', 'normal');
+        useFont(doc, 'regular');
         doc.setTextColor(...MUTED);
         doc.text(String(entry.page), x + colW, y, { align: 'right' });
         doc.setDrawColor(...LINE);
