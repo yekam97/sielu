@@ -1283,7 +1283,22 @@ textarea {
 }
 
 .card-photos {
-    flex: 0 0 auto;
+    /* as wide as a single photo, with the photos centered in it, so 1, 2 or 3 stacked photos share one center line */
+    flex: 0 0 150px;
+    display: flex;
+    justify-content: center;
+}
+
+.card-photos.is-grid {
+    flex-basis: auto;
+}
+
+.card-product-block--compact .card-photos {
+    flex-basis: 104px;
+}
+
+.card-product-block--compact .card-photos.is-grid {
+    flex-basis: auto;
 }
 
 .card-photos .product-thumb {
@@ -1379,7 +1394,7 @@ textarea {
     flex-shrink: 0;
     width: 88px;
     height: 88px;
-    background-color: #f6f4ef;
+    background-color: transparent;
     border-radius: 4px;
     display: flex;
     align-items: center;
@@ -1580,6 +1595,18 @@ textarea {
 
     .card-columns {
         flex-direction: column;
+    }
+
+    /* the columns stack here, so the photo column's flex-basis would become its height */
+    .card-photos,
+    .card-product-block--compact .card-photos {
+        flex: 0 0 auto;
+        width: 110px;
+    }
+
+    .card-photos.is-grid,
+    .card-product-block--compact .card-photos.is-grid {
+        width: auto;
     }
 
     .card-photos .product-thumb {

@@ -477,6 +477,7 @@ function buildListProductBlock(cardData, { compact = false } = {}) {
     const photosCol = document.createElement('div');
     photosCol.className = 'card-photos';
     if (cardData.isGroup) photosCol.classList.add('is-group');
+    if (cardData.members.length >= 4) photosCol.classList.add('is-grid');
 
     const thumbGroup = document.createElement('div');
     thumbGroup.className = 'product-thumb-group';
@@ -572,6 +573,14 @@ const FLIP_PAGE_W = 1000;
 const FLIP_PAGE_H = Math.round(FLIP_PAGE_W / FLIP_PAGE_RATIO);
 const FLIP_MIN_WIDTH = 800;
 
+// Flipbook photo column: with 1-3 photos the group sits centered inside a square as wide as a
+// single photo (capped at `singleCap` px), so a pair of stacked photos has the same center line as a
+// lone one instead of leaning left. A 2-column grid (4+ photos) is already wider and stays as is.
+function photoColumnHtml(groupHtml, photoCount, singleCap) {
+    if (photoCount >= 4) return groupHtml;
+    return `<div style="flex: 0 0 auto; height: 100%; aspect-ratio: 1 / 1; max-height: ${singleCap}px; display: flex; justify-content: center; align-items: center; min-width: 0;">${groupHtml}</div>`;
+}
+
 // Build the product block used inside a flipbook page (two per page: top/bottom half).
 // PageFlip scales the physical page's rendered pixel size depending on viewport width, so a fixed
 // pixel budget either clips on small renders or leaves a growing dead zone of empty space on large
@@ -617,7 +626,7 @@ function buildFlipCardHtml(cardData, cat) {
             </div>
 
             <div style="display: flex; gap: 1.75rem; align-items: stretch; flex: 1 1 0; min-height: 0; overflow: hidden; box-sizing: border-box;">
-                <div class="product-thumb-group" style="${thumbGroupStyle}">${thumbsHtml}</div>
+                ${photoColumnHtml(`<div class="product-thumb-group" style="${thumbGroupStyle}">${thumbsHtml}</div>`, photoCount, wideSpecs ? 190 : 260)}
 
                 <div style="flex: ${wideSpecs ? '2 1 420px' : '1 1 280px'}; height: 100%; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
                     <h4 style="font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 700; color: var(--sielu-gold); letter-spacing: 0.6px; margin: 0 0 8px; line-height: 1; flex-shrink: 0; text-transform: uppercase; border-bottom: 1px solid #ECE7DB; padding-bottom: 5px;">ESPECIFICACIONES TÉCNICAS</h4>
@@ -674,7 +683,7 @@ function buildFlipAccessoryHtml(cardData, cat) {
             </div>
 
             <div style="display: flex; gap: 0.9rem; align-items: stretch; flex: 1 1 0; min-height: 0; overflow: hidden;">
-                <div class="product-thumb-group" style="${thumbGroupStyle}">${thumbsHtml}</div>
+                ${photoColumnHtml(`<div class="product-thumb-group" style="${thumbGroupStyle}">${thumbsHtml}</div>`, photoCount, 150)}
 
                 <div style="flex: 1 1 0; min-width: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column; gap: 0.4rem;">
                     <div style="flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: clamp(3px, 2%, 8px);">
@@ -696,6 +705,9 @@ function buildFlipAccessoryHtml(cardData, cat) {
         </div>
     `;
 }
+
+// Sielu caramel: color of the cover's logo and text, same as the PDF front cover
+const FLIP_COVER_COLOR = '#DAC59B';
 
 // "Octubre 2026": month and year shown on the flipbook cover (the PDF cover uses the download date)
 function monthLabel(date = new Date()) {
@@ -748,10 +760,10 @@ function renderFlipbook() {
     coverPage.style.padding = '0';
     coverPage.innerHTML = `
         <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
-            <img src="/logo.png" style="max-width: 220px; margin-bottom: 1.75rem; display: block;" alt="Sielu" onerror="this.style.display='none'">
-            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 3.5rem; font-weight: 300; color: var(--sielu-text-dark); margin: 0; padding-left: 3px; letter-spacing: 3px; text-transform: uppercase; line-height: 1.2;">Catálogo</h1>
-            <div style="width: 80px; height: 1px; background-color: var(--sielu-accent); margin: 1.5rem auto 1.5rem;"></div>
-            <p style="font-family: var(--font-sans); font-size: 0.8rem; padding-left: 3px; letter-spacing: 3px; color: var(--sielu-text-muted); text-transform: uppercase;">${monthLabel()}</p>
+            <img src="/logo-portada.png" style="width: 100%; max-width: 380px; margin-bottom: 1.5rem; display: block;" alt="Sielu diseño e iluminación" onerror="this.style.display='none'">
+            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 3.5rem; font-weight: 300; color: ${FLIP_COVER_COLOR}; margin: 0; padding-left: 3px; letter-spacing: 3px; text-transform: uppercase; line-height: 1.2;">Catálogo</h1>
+            <div style="width: 80px; height: 1px; background-color: var(--sielu-text-dark); margin: 1.5rem auto 1.5rem;"></div>
+            <p style="font-family: var(--font-sans); font-size: 0.8rem; padding-left: 3px; letter-spacing: 3px; color: var(--sielu-text-dark); text-transform: uppercase;">${monthLabel()}</p>
         </div>
     `;
     container.appendChild(coverPage);
@@ -872,7 +884,7 @@ function renderFlipbook() {
     backCoverPage.style.padding = '0';
     backCoverPage.innerHTML = `
         <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
-            <img src="/logo.png" style="max-width: 180px; margin-bottom: 1.5rem; display: block;" alt="Sielu Logo" onerror="this.style.display='none'">
+            <img src="/logo.png" style="max-width: 207px; margin-bottom: 1.5rem; display: block;" alt="Sielu Logo" onerror="this.style.display='none'">
             <div style="width: 50px; height: 1px; background-color: var(--sielu-accent); margin: 1rem auto;"></div>
             <p style="font-family: var(--font-sans); font-size: 0.85rem; color: var(--sielu-text-muted); margin-bottom: 0.4rem; letter-spacing: 1.5px; text-transform: uppercase;">sielu.design</p>
             <p style="font-family: var(--font-sans); font-size: 0.85rem; color: var(--sielu-text-muted); letter-spacing: 1px;">+57 314 2188971</p>

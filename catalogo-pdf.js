@@ -16,6 +16,7 @@ const DARK = [26, 26, 26];
 const MUTED = [110, 110, 110];
 const LINE = [226, 220, 205];
 const CREAM = [255, 255, 255]; // page background: white
+const COVER_COLOR = [218, 197, 155]; // front cover logo and text (Sielu caramel)
 const TILE = [246, 244, 239];
 const BOX = [250, 248, 243];
 
@@ -113,7 +114,7 @@ function hexToRgb(hex) {
 // `blend` is the tile color the image sits on in the PDF: the image is multiplied onto it, like the
 // online catalog's `mix-blend-mode: multiply`, so a white/transparent photo background takes the
 // tile color instead of showing as a white box.
-async function loadAndEncode(url, { maxDim, cropRatio, blend }) {
+async function loadAndEncode(url, { maxDim, cropRatio, blend, png }) {
     const response = await fetch(url, { mode: 'cors' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const bitmap = await createImageBitmap(await response.blob());
@@ -136,12 +137,14 @@ async function loadAndEncode(url, { maxDim, cropRatio, blend }) {
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = blend ? `rgb(${blend.join(',')})` : '#ffffff';
-    ctx.fillRect(0, 0, w, h);
+    if (!png) { // PNG keeps its transparency; JPEG needs a solid background
+        ctx.fillStyle = blend ? `rgb(${blend.join(',')})` : '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+    }
     if (blend) ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, w, h);
     bitmap.close?.();
-    return { data: canvas.toDataURL('image/jpeg', 0.82), w, h };
+    return { data: png ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.82), w, h };
 }
 
 // `sources` is one URL or an ordered list (primary, then backups). Each source but the last gets
@@ -149,7 +152,7 @@ async function loadAndEncode(url, { maxDim, cropRatio, blend }) {
 function fetchImage(sources, options) {
     const list = [].concat(sources || []).filter(Boolean);
     if (!list.length) return Promise.resolve(null);
-    const key = `${list.join('|')}|${options.maxDim}|${options.cropRatio || ''}|${(options.blend || []).join(',')}`;
+    const key = `${list.join('|')}|${options.maxDim}|${options.cropRatio || ''}|${(options.blend || []).join(',')}|${options.png ? 'png' : ''}`;
     if (!imageCache.has(key)) {
         imageCache.set(key, (async () => {
             for (let i = 0; i < list.length; i++) {
@@ -201,13 +204,14 @@ function drawPhotos(doc, photos, x, y, w, h) {
     const rows = Math.ceil(count / cols);
     const gap = 3;
     const cell = Math.min((w - gap * (cols - 1)) / cols, (h - gap * (rows - 1)) / rows, 52);
+    const totalW = cell * cols + gap * (cols - 1);
     const totalH = cell * rows + gap * (rows - 1);
+    // Centered in its column both ways, so one, two or four photos all share the same center line
+    const startX = x + Math.max(0, (w - totalW) / 2);
     const startY = y + Math.max(0, (h - totalH) / 2);
     photos.forEach((img, index) => {
-        const cx = x + (index % cols) * (cell + gap);
+        const cx = startX + (index % cols) * (cell + gap);
         const cy = startY + Math.floor(index / cols) * (cell + gap);
-        doc.setFillColor(...TILE);
-        doc.roundedRect(cx, cy, cell, cell, 1.5, 1.5, 'F');
         drawImageContain(doc, img, cx, cy, cell, cell, 2);
     });
 }
@@ -437,8 +441,9 @@ function footer(doc, number, logo) {
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
     if (logo) {
-        const lh = 4.5;
-        doc.addImage(logo.data, 'JPEG', MARGIN_X, FOOTER_Y - lh + 0.6, lh * (logo.w / logo.h), lh);
+        // black Sielu logo (tight crop, transparent): same visible size and spot as the previous footer logo
+        const lh = 2.4;
+        doc.addImage(logo.data, 'PNG', MARGIN_X - 1.9, FOOTER_Y - 3, lh * (logo.w / logo.h), lh);
     } else {
         doc.text('sielu', MARGIN_X, FOOTER_Y);
     }
@@ -450,7 +455,7 @@ function footer(doc, number, logo) {
  *   photos:string[], specs:{label:string,value:string}[], drawing:string}>}>} categories
  * @param {{onProgress?:(phase:string, value:number)=>void, signal?:AbortSignal}} options
  */
-export async function generateCatalogPdf(categories, { onProgress = () => {}, signal } = {}) {
+export async function generateCatalogPdf(categories, { onProgress = () => {}, signal, fileName, contents = true } = {}) {
     // 1. Collect and prefetch every image
     const jobs = [];
     const seen = new Set();
@@ -463,11 +468,12 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
         jobs.push({ key, sources: list, options });
     };
     const COVER_RATIO = PAGE_W / PAGE_H;
-    add('/logo.png', 'logo', { maxDim: 600 });
+    add('/logo-negro.png', 'logo', { maxDim: 900, png: true });
+    add('/logo-portada.png', 'coverlogo', { maxDim: 1100, png: true });
     categories.forEach(cat => {
         add(cat.image, 'cover', { maxDim: 1500, cropRatio: COVER_RATIO });
         cat.pages.forEach(page => page.cards.forEach(card => {
-            card.photos.forEach(sources => add(sources, 'photo', { maxDim: 380, blend: TILE }));
+            card.photos.forEach(sources => add(sources, 'photo', { maxDim: 380 }));
             add(card.drawing, 'drawing', { maxDim: 900, blend: BOX });
         }));
     });
@@ -485,35 +491,41 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     let pageNumber = 1;
     const tocEntries = [];
 
-    // Front cover: logo, "CATÁLOGO" and the month/year the PDF was downloaded
+    // Front cover: caramel logo, "CATÁLOGO" and the month/year of the download on the usual page background
     pageBackground(doc);
-    const frontLogo = images.get('/logo.png|logo');
+    const dy = 16; // moves the whole group down so it is vertically centered on the page
+    const frontLogo = images.get('/logo-portada.png|coverlogo');
     if (frontLogo) {
-        const lw = 60;
+        const lw = 80;
         const lh = lw * (frontLogo.h / frontLogo.w);
-        // -1: optical correction for the logo's uneven side margins (measured on the rendered page)
-        doc.addImage(frontLogo.data, 'JPEG', (PAGE_W - lw) / 2 - 1, PAGE_H / 2 - 16 - lh, lw, lh);
+        // the image is padded so its center line is the center of the "sielu" wordmark
+        doc.addImage(frontLogo.data, 'PNG', (PAGE_W - lw) / 2, PAGE_H / 2 + dy - 20 - lh, lw, lh);
     } else {
         useFont(doc, 'regular');
         doc.setFontSize(10);
-        doc.setTextColor(...MUTED);
-        doc.text('S I E L U', PAGE_W / 2, PAGE_H / 2 - 22, { align: 'center' });
+        doc.setTextColor(...COVER_COLOR);
+        doc.text('S I E L U', PAGE_W / 2, PAGE_H / 2 + dy - 22, { align: 'center' });
     }
     useFont(doc, 'regular');
     doc.setFontSize(34);
-    doc.setTextColor(...DARK);
-    centerText(doc, 'CATÁLOGO', PAGE_H / 2 + 2, 1);
-    doc.setDrawColor(...GOLD);
+    doc.setTextColor(...COVER_COLOR);
+    centerText(doc, 'CATÁLOGO', PAGE_H / 2 + dy + 2, 1);
+    // the line and the month use the same dark color as the letters of the contents page
+    doc.setDrawColor(...DARK);
     doc.setLineWidth(0.4);
-    doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + 12, PAGE_W / 2 + 14, PAGE_H / 2 + 12);
+    doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + dy + 12, PAGE_W / 2 + 14, PAGE_H / 2 + dy + 12);
     doc.setFontSize(10);
-    doc.setTextColor(...MUTED);
-    centerText(doc, pdfText(monthLabel()).toUpperCase(), PAGE_H / 2 + 21, 1);
+    doc.setTextColor(...DARK);
+    centerText(doc, pdfText(monthLabel()).toUpperCase(), PAGE_H / 2 + dy + 21, 1);
 
-    // Reserve the contents page; it is filled in once page numbers are known
-    doc.addPage([PAGE_W, PAGE_H], 'landscape');
-    pageNumber++;
-    const tocPage = pageNumber;
+    // Reserve the contents page; it is filled in once page numbers are known (`contents: false`
+    // leaves it out, e.g. for a PDF of a single category)
+    let tocPage = 0;
+    if (contents) {
+        doc.addPage([PAGE_W, PAGE_H], 'landscape');
+        pageNumber++;
+        tocPage = pageNumber;
+    }
 
     categories.forEach((cat, catIndex) => {
         const cover = images.get(`${[].concat(cat.image || []).filter(Boolean)[0]}|cover`);
@@ -585,7 +597,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
                     drawProduct(doc, pageData.cards[1], images, cat.name, TOP + blockH + BLOCK_GAP, blockH);
                 }
             }
-            footer(doc, pageNumber, images.get('/logo.png|logo'));
+            footer(doc, pageNumber, images.get('/logo-negro.png|logo'));
         });
         onProgress('layout', (catIndex + 1) / categories.length);
     });
@@ -594,11 +606,13 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     doc.addPage([PAGE_W, PAGE_H], 'landscape');
     pageNumber++;
     pageBackground(doc);
-    const logo = images.get('/logo.png|logo');
+    const logo = images.get('/logo-negro.png|logo');
     if (logo) {
-        const lw = 50;
+        // tight crop of the black logo; centered on the "sielu" wordmark (the ® hangs to its right)
+        const lw = 43.6;
         const lh = lw * (logo.h / logo.w);
-        doc.addImage(logo.data, 'JPEG', (PAGE_W - lw) / 2, PAGE_H / 2 - lh - 6, lw, lh);
+        const wordmarkShift = lw * (0.5 - 502 / 1166); // wordmark center sits at 502 of 1166 px in the source image
+        doc.addImage(logo.data, 'PNG', (PAGE_W - lw) / 2 + wordmarkShift, PAGE_H / 2 - 31.25, lw, lh);
     }
     useFont(doc, 'regular');
     doc.setFontSize(9);
@@ -606,40 +620,42 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     centerText(doc, 'SIELU.DESIGN', PAGE_H / 2 + 6, 0.6);
     doc.text('+57 314 2188971', PAGE_W / 2, PAGE_H / 2 + 12, { align: 'center' });
 
-    // Contents page, now that page numbers exist
-    doc.setPage(tocPage);
-    pageBackground(doc);
-    useFont(doc, 'regular');
-    doc.setFontSize(22);
-    doc.setTextColor(...DARK);
-    centerText(doc, 'CONTENIDO', 26, 0.8);
-    const colW = (PAGE_W - MARGIN_X * 2 - 20) / 2;
-    const perCol = Math.ceil(tocEntries.length / 2);
-    const rowH = Math.min(8, (PAGE_H - 50) / perCol);
-    tocEntries.forEach((entry, index) => {
-        const col = Math.floor(index / perCol);
-        const row = index % perCol;
-        const x = MARGIN_X + col * (colW + 20);
-        const y = 42 + row * rowH;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.setTextColor(...DARK);
-        const name = fitValue(doc, pdfText(entry.name).toUpperCase(), colW - 14, 8);
-        doc.text(name, x, y);
+    if (contents) {
+        // Contents page, now that page numbers exist
+        doc.setPage(tocPage);
+        pageBackground(doc);
         useFont(doc, 'regular');
-        doc.setTextColor(...MUTED);
-        doc.text(String(entry.page), x + colW, y, { align: 'right' });
-        doc.setDrawColor(...LINE);
-        doc.setLineWidth(0.2);
-        try { doc.setLineDashPattern([0.3, 0.9], 0); } catch (e) { /* noop */ }
-        const nameW = doc.getTextWidth(name);
-        doc.line(x + nameW + 2, y - 0.8, x + colW - 8, y - 0.8);
-        try { doc.setLineDashPattern([], 0); } catch (e) { /* noop */ }
-        doc.link(x, y - 4, colW, rowH, { pageNumber: entry.page });
-    });
+        doc.setFontSize(22);
+        doc.setTextColor(...DARK);
+        centerText(doc, 'CONTENIDO', 26, 0.8);
+        const colW = (PAGE_W - MARGIN_X * 2 - 20) / 2;
+        const perCol = Math.ceil(tocEntries.length / 2);
+        const rowH = Math.min(8, (PAGE_H - 50) / perCol);
+        tocEntries.forEach((entry, index) => {
+            const col = Math.floor(index / perCol);
+            const row = index % perCol;
+            const x = MARGIN_X + col * (colW + 20);
+            const y = 42 + row * rowH;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(...DARK);
+            const name = fitValue(doc, pdfText(entry.name).toUpperCase(), colW - 14, 8);
+            doc.text(name, x, y);
+            useFont(doc, 'regular');
+            doc.setTextColor(...MUTED);
+            doc.text(String(entry.page), x + colW, y, { align: 'right' });
+            doc.setDrawColor(...LINE);
+            doc.setLineWidth(0.2);
+            try { doc.setLineDashPattern([0.3, 0.9], 0); } catch (e) { /* noop */ }
+            const nameW = doc.getTextWidth(name);
+            doc.line(x + nameW + 2, y - 0.8, x + colW - 8, y - 0.8);
+            try { doc.setLineDashPattern([], 0); } catch (e) { /* noop */ }
+            doc.link(x, y - 4, colW, rowH, { pageNumber: entry.page });
+        });
+    }
 
     onProgress('saving', 1);
     const stamp = new Date().toISOString().slice(0, 10);
-    doc.save(`Catalogo-Sielu-${stamp}.pdf`);
+    doc.save(fileName || `Catalogo-Sielu-${stamp}.pdf`);
     return { pages: pageNumber, images: jobs.length, missing: [...images.values()].filter(v => !v).length };
 }
