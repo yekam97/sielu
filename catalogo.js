@@ -760,8 +760,8 @@ function renderFlipbook() {
     coverPage.style.padding = '0';
     coverPage.innerHTML = `
         <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
-            <img src="/logo-portada.png" style="width: 100%; max-width: 380px; margin-bottom: 1.5rem; display: block;" alt="Sielu diseño e iluminación" onerror="this.style.display='none'">
-            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 3.5rem; font-weight: 300; color: ${FLIP_COVER_COLOR}; margin: 0; padding-left: 3px; letter-spacing: 3px; text-transform: uppercase; line-height: 1.2;">Catálogo</h1>
+            <img src="/logo-portada.png" style="width: 100%; max-width: 304px; margin-bottom: 1.5rem; display: block;" alt="Sielu diseño e iluminación" onerror="this.style.display='none'">
+            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 2.1rem; font-weight: 300; color: ${FLIP_COVER_COLOR}; margin: 0; padding-left: 3px; letter-spacing: 3px; text-transform: uppercase; line-height: 1.2;">Catálogo</h1>
             <div style="width: 80px; height: 1px; background-color: var(--sielu-text-dark); margin: 1.5rem auto 1.5rem;"></div>
             <p style="font-family: var(--font-sans); font-size: 0.8rem; padding-left: 3px; letter-spacing: 3px; color: var(--sielu-text-dark); text-transform: uppercase;">${monthLabel()}</p>
         </div>

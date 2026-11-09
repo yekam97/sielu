@@ -496,7 +496,7 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     const dy = 16; // moves the whole group down so it is vertically centered on the page
     const frontLogo = images.get('/logo-portada.png|coverlogo');
     if (frontLogo) {
-        const lw = 80;
+        const lw = 64; // 80 - 20%
         const lh = lw * (frontLogo.h / frontLogo.w);
         // the image is padded so its center line is the center of the "sielu" wordmark
         doc.addImage(frontLogo.data, 'PNG', (PAGE_W - lw) / 2, PAGE_H / 2 + dy - 20 - lh, lw, lh);
@@ -507,16 +507,16 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
         doc.text('S I E L U', PAGE_W / 2, PAGE_H / 2 + dy - 22, { align: 'center' });
     }
     useFont(doc, 'regular');
-    doc.setFontSize(34);
+    doc.setFontSize(20.4); // 34 - 40%
     doc.setTextColor(...COVER_COLOR);
-    centerText(doc, 'CATÁLOGO', PAGE_H / 2 + dy + 2, 1);
+    centerText(doc, 'CATÁLOGO', PAGE_H / 2 + dy - 3, 1);
     // the line and the month use the same dark color as the letters of the contents page
     doc.setDrawColor(...DARK);
     doc.setLineWidth(0.4);
-    doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + dy + 12, PAGE_W / 2 + 14, PAGE_H / 2 + dy + 12);
+    doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + dy + 7, PAGE_W / 2 + 14, PAGE_H / 2 + dy + 7);
     doc.setFontSize(10);
     doc.setTextColor(...DARK);
-    centerText(doc, pdfText(monthLabel()).toUpperCase(), PAGE_H / 2 + dy + 21, 1);
+    centerText(doc, pdfText(monthLabel()).toUpperCase(), PAGE_H / 2 + dy + 16, 1);
 
     // Reserve the contents page; it is filled in once page numbers are known (`contents: false`
     // leaves it out, e.g. for a PDF of a single category)
