@@ -7,7 +7,7 @@ const PHOTO_FIELD = BACKUP_FIELDS.find(f => f.key === 'photo');
 let cloudinaryConfig = { cloudName: DEFAULT_CLOUD_NAME, uploadPreset: '' };
 
 // --- AUTHENTICATION ---
-const PASSWORD = "Sielu2026";
+const PASSWORD = "admin";
 // Second, restricted access: it can only fill in each product's technical sheet URL (no adding,
 // editing, deleting, availability or ordering). It uses its own session key so it never opens the
 // catalog configurator, which only checks 'sielu_auth'.

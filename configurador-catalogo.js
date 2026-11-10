@@ -2,7 +2,7 @@ import { collection, getDocs, query, doc, updateDoc, deleteField } from "firebas
 import { db } from "./firebase-config.js";
 import { BACKUP_FIELDS, DEFAULT_CLOUD_NAME, isCloudinaryUrl, isBackupConfigured, uploadToCloudinary } from "./image-backup.js";
 
-const PASSWORD = "Sielu2026";
+const PASSWORD = "admin";
 const loginModal = document.getElementById('loginModal');
 const passwordInput = document.getElementById('passwordInput');
 const loginBtn = document.getElementById('loginBtn');
