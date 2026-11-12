@@ -16,7 +16,7 @@ const DARK = [26, 26, 26];
 const MUTED = [110, 110, 110];
 const LINE = [226, 220, 205];
 const CREAM = [255, 255, 255]; // page background: white
-const COVER_COLOR = [218, 197, 155]; // front cover logo and text (Sielu caramel)
+const COVER_BG = [218, 197, 155]; // front cover background (Sielu khaki)
 const TILE = [246, 244, 239];
 const BOX = [250, 248, 243];
 
@@ -491,8 +491,9 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     let pageNumber = 1;
     const tocEntries = [];
 
-    // Front cover: caramel logo, "CATÁLOGO" and the month/year of the download on the usual page background
-    pageBackground(doc);
+    // Front cover: Sielu khaki background with the white logo, "CATÁLOGO" and the month/year of the download
+    doc.setFillColor(...COVER_BG);
+    doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
     const dy = 16; // moves the whole group down so it is vertically centered on the page
     const frontLogo = images.get('/logo-portada.png|coverlogo');
     if (frontLogo) {
@@ -503,19 +504,18 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
     } else {
         useFont(doc, 'regular');
         doc.setFontSize(10);
-        doc.setTextColor(...COVER_COLOR);
+        doc.setTextColor(255, 255, 255);
         doc.text('S I E L U', PAGE_W / 2, PAGE_H / 2 + dy - 22, { align: 'center' });
     }
     useFont(doc, 'regular');
     doc.setFontSize(20.4); // 34 - 40%
-    doc.setTextColor(...COVER_COLOR);
+    doc.setTextColor(255, 255, 255);
     centerText(doc, 'CATÁLOGO', PAGE_H / 2 + dy - 3, 1);
-    // the line and the month use the same dark color as the letters of the contents page
-    doc.setDrawColor(...DARK);
+    doc.setDrawColor(255, 255, 255);
     doc.setLineWidth(0.4);
     doc.line(PAGE_W / 2 - 14, PAGE_H / 2 + dy + 7, PAGE_W / 2 + 14, PAGE_H / 2 + dy + 7);
     doc.setFontSize(10);
-    doc.setTextColor(...DARK);
+    doc.setTextColor(255, 255, 255);
     centerText(doc, pdfText(monthLabel()).toUpperCase(), PAGE_H / 2 + dy + 16, 1);
 
     // Reserve the contents page; it is filled in once page numbers are known (`contents: false`
@@ -535,17 +535,23 @@ export async function generateCatalogPdf(categories, { onProgress = () => {}, si
 
         if (cover) {
             doc.addImage(cover.data, 'JPEG', 0, 0, PAGE_W, PAGE_H);
-            doc.saveGraphicsState();
-            doc.setGState(new doc.GState({ opacity: 0.45 }));
-            doc.setFillColor(0, 0, 0);
-            doc.rect(0, PAGE_H - 62, PAGE_W, 62, 'F');
-            doc.restoreGraphicsState();
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor(255, 255, 255);
             const title = fitTitle(doc, pdfText(cat.name).toUpperCase(), PAGE_W - (MARGIN_X + 6) * 2, 1, 30, 22);
             const titleLead = title.size * 0.3528 * 1.3;
+            // Dark fade behind the title, only as tall as the title needs: it fades in from the top
+            // of the band (stacked translucent strips) down to its densest at the bottom edge.
+            const bandH = 20 + (title.lines.length - 1) * titleLead + title.size * 0.3528;
+            const strips = 16;
+            for (let i = 0; i < strips; i++) {
+                doc.saveGraphicsState();
+                doc.setGState(new doc.GState({ opacity: 0.5 * ((i + 1) / strips) }));
+                doc.setFillColor(0, 0, 0);
+                doc.rect(0, PAGE_H - bandH + i * (bandH / strips), PAGE_W, bandH / strips + 0.05, 'F');
+                doc.restoreGraphicsState();
+            }
+            doc.setTextColor(255, 255, 255);
             title.lines.forEach((line, lineIndex) => {
-                doc.text(line, MARGIN_X + 6, PAGE_H - 20 - (title.lines.length - 1 - lineIndex) * titleLead, { charSpace: 1 });
+                doc.text(line, MARGIN_X + 6, PAGE_H - 12 - (title.lines.length - 1 - lineIndex) * titleLead, { charSpace: 1 });
             });
         } else {
             pageBackground(doc);

@@ -706,8 +706,8 @@ function buildFlipAccessoryHtml(cardData, cat) {
     `;
 }
 
-// Sielu caramel: color of the cover's logo and text, same as the PDF front cover
-const FLIP_COVER_COLOR = '#DAC59B';
+// Sielu khaki: cover background (the logo and the texts on it are white), same as the PDF front cover
+const FLIP_COVER_BG = '#DAC59B';
 
 // "Octubre 2026": month and year shown on the flipbook cover (the PDF cover uses the download date)
 function monthLabel(date = new Date()) {
@@ -758,12 +758,13 @@ function renderFlipbook() {
     coverPage.style.width = `${FLIP_PAGE_W}px`;
     coverPage.style.height = `${FLIP_PAGE_H}px`;
     coverPage.style.padding = '0';
+    coverPage.style.backgroundColor = FLIP_COVER_BG;
     coverPage.innerHTML = `
-        <div class="page-content" style="justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
+        <div class="page-content" style="background-color: ${FLIP_COVER_BG}; justify-content: center; align-items: center; text-align: center; height: 100%; padding: 3rem; box-sizing: border-box; display: flex; flex-direction: column;">
             <img src="/logo-portada.png" style="width: 100%; max-width: 304px; margin-bottom: 1.5rem; display: block;" alt="Sielu diseño e iluminación" onerror="this.style.display='none'">
-            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 2.1rem; font-weight: 300; color: ${FLIP_COVER_COLOR}; margin: 0; padding-left: 3px; letter-spacing: 3px; text-transform: uppercase; line-height: 1.2;">Catálogo</h1>
-            <div style="width: 80px; height: 1px; background-color: var(--sielu-text-dark); margin: 1.5rem auto 1.5rem;"></div>
-            <p style="font-family: var(--font-sans); font-size: 0.8rem; padding-left: 3px; letter-spacing: 3px; color: var(--sielu-text-dark); text-transform: uppercase;">${monthLabel()}</p>
+            <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 2.1rem; font-weight: 300; color: #fff; margin: 0; padding-left: 3px; letter-spacing: 3px; text-transform: uppercase; line-height: 1.2;">Catálogo</h1>
+            <div style="width: 80px; height: 1px; background-color: #fff; margin: 1.5rem auto 1.5rem;"></div>
+            <p style="font-family: var(--font-sans); font-size: 0.8rem; padding-left: 3px; letter-spacing: 3px; color: #fff; text-transform: uppercase;">${monthLabel()}</p>
         </div>
     `;
     container.appendChild(coverPage);
@@ -827,7 +828,7 @@ function renderFlipbook() {
             coverPageEl.innerHTML = `
                 <div class="page-content" style="height: 100%; position: relative; overflow: hidden;">
                     <img src="${IMG_PLACEHOLDER}" ${imgSourceAttrs(coverSources(cat))} alt="${cat}" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" onerror="sieluRetryImg(this, 'cover')">
-                    <div style="position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 3rem; box-sizing: border-box; background: linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%);">
+                    <div style="position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 3rem; box-sizing: border-box; background: linear-gradient(0deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 30%);">
                         <h2 style="font-family: var(--font-sans); font-size: 2.75rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.08em; margin: 0; text-shadow: 0 2px 10px rgba(0,0,0,0.35);">${cat}</h2>
                     </div>
                 </div>
